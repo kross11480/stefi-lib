@@ -9,7 +9,7 @@ if(NOT DEFINED CMAKE_TOOLCHAIN_FILE)
 endif()
 
 # project settings
-project(stefi C ASM)
+project(stefi VERSION 0.1.0 LANGUAGES C ASM)
 set(CMAKE_C_STANDARD 11)
 
 add_library(libstefi
