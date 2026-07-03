@@ -32,6 +32,9 @@ button_config_t buttons[NUM_BUTTONS] = {
     [BUTTON_USER1] = {B5, PULL_UP},
 };
 
+_Static_assert(NUM_BUTTONS <= STEFI_MAX_BUTTONS,
+        "button.c sizes its per-button state by STEFI_MAX_BUTTONS");
+
 hardware_timer_config_t hardware_timers[NUM_RESERVED_TIMER] = {
     [DEBOUNCE_TIMER] = {TIMER6, 4000, 10},
 };

@@ -17,7 +17,7 @@ typedef struct {
     callbackfn_t cb;
 } button_context_t;
 
-static button_context_t button_ctx[NUM_BUTTONS];
+static button_context_t button_ctx[STEFI_MAX_BUTTONS];
 static stefi_button_t button_to_debounce;
 static callbackfn_t debounce_callback;
 

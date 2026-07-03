@@ -1,6 +1,7 @@
 #include <libstefi/rng.h>
 
 #include "stdio.h"
+#include "board.h"
 #include "led.h"
 #include "button.h"
 #include "ssd1306.h"
