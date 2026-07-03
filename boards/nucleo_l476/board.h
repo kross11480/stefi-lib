@@ -1,58 +1,33 @@
 #pragma once
 
-#include "libstefi/gpio.h"
-#include "libstefi/timer.h"
-#include "libstefi/peripheral.h"
+#include "stefi_board.h"
 
 /* Boot clock: the L476 resets onto the 4 MHz MSI. Passed to
  * systick_init(); update the SysTick (and UART/I2C) setup if the
  * clock is reconfigured (e.g. system_init() -> 80 MHz). */
 #define BOARD_SYSCLK (4000000U)
 
-typedef enum {
+/* Device instances — indices into the interface config tables
+ * (stefi_led_t / stefi_button_t are typedef'd in stefi_board.h). */
+enum {
     LED0_RED = 0,
     LED1_YELLOW,
     LED2_GREEN,
     LED3_BLUE,
     LED_NUCLEO,
     NUM_LEDS
-} stefi_led_t;
+};
 
-typedef enum {
+enum {
     BUTTON_S0 = 0,
     BUTTON_S1,
     BUTTON_S2,
     BUTTON_S3,
     BUTTON_NUCLEO,
     NUM_BUTTONS
-} stefi_button_t;
+};
 
-typedef enum {
-    DEBOUNCE_TIMER,
-    NUM_RESERVED_TIMER,
-} stefi_timer_t;
-
-typedef struct {
-    gpio_id_t portpin;
-    sig_t off_state;
-    tim_id_t timer_id;
-    uint32_t channel;
-    afr_t af_mode;
-} led_config_t;
-
-//Button Confguration
-typedef struct {
-    gpio_id_t portpin;
-    pupdr_t pull;
-} button_config_t;
-
-typedef struct {
-    tim_id_t timer;
-    uint32_t prescaler;
-    uint32_t period;
-} hardware_timer_config_t;
-
-//FRAM Configuration: later freq, mode, ...
+//FRAM Configuration: later freq, mode, ... (board-specific device)
 typedef struct {
     peripheral_spi_t spi_id;
     gpio_id_t cs_portpin;
@@ -61,8 +36,7 @@ typedef struct {
     gpio_id_t mosi_portpin;
 } fm25cl64_config_t;
 
-typedef peripheral_i2c_t i2c_id_t;
-
+/* EMB SSD1306 OLED (board-specific device) */
 typedef struct {
     i2c_id_t i2c_id;
     uint8_t i2c_addr;
@@ -71,23 +45,12 @@ typedef struct {
     gpio_id_t display_switch_pin;
 } ssd1306_config_t;
 
-typedef peripheral_adc_t adc_id_t;
-
-typedef struct {
-    gpio_id_t portpin;
-    tim_id_t timer_id;
-    uint32_t timer_channel;
-    adc_id_t *adc_id;
-    uint32_t adc_channel;
-} freepin_config_t;
-
 /* Header pins free for applications — i.e. not claimed by an on-board
  * peripheral (LEDs, buttons, FRAM, USART2/printf, EMB display). */
 #define NUM_GPIO_PINS 30
 
 extern led_config_t leds[NUM_LEDS];
 extern button_config_t buttons[NUM_BUTTONS];
-extern hardware_timer_config_t hardware_timers[NUM_RESERVED_TIMER];
 extern freepin_config_t freepin[NUM_GPIO_PINS];
 
 /*
@@ -112,5 +75,3 @@ typedef enum {
 } stefi_con20ap_t;
 
 extern freepin_config_t con20ap[NUM_CON20AP_PINS];
-
-void board_init();

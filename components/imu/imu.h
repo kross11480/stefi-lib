@@ -1,6 +1,6 @@
 #pragma once
 
-#include "board.h"
+#include "stefi_board.h"
 #include <stdbool.h>
 #include <stdint.h>
 
