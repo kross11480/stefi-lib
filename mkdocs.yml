@@ -1,0 +1,45 @@
+site_name: stefi-lib
+site_description: Bare-metal C firmware framework for STM32G4/L4 — no HAL, no CMSIS
+site_url: https://kross11480.github.io/stefi-lib/
+repo_url: https://github.com/kross11480/stefi-lib
+repo_name: kross11480/stefi-lib
+
+# Published docs live in doc/ — docs/ is local-only personal notes (gitignored).
+docs_dir: doc
+
+nav:
+  - Home: index.md
+  - Getting started: GETTING_STARTED.md
+  - Examples: examples.md
+
+theme:
+  name: material
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: teal
+      toggle:
+        icon: material/brightness-7
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: teal
+      toggle:
+        icon: material/brightness-4
+        name: Switch to light mode
+  features:
+    - content.code.copy
+    - navigation.sections
+
+markdown_extensions:
+  - attr_list
+  - md_in_html
+  - admonition
+  - tables
+  - pymdownx.superfences
+  - pymdownx.snippets:
+      # Paths resolve from the repo root, so pages can embed real example
+      # sources (e.g. examples/1-Blinky/blinky.c). check_paths makes the
+      # build fail if an embedded file moves — docs can't silently drift.
+      base_path: ["."]
+      check_paths: true
