@@ -220,6 +220,10 @@ void timer_set_ic_edge(const tim_id_t timer_id, timer_channel_t channel, timer_e
     }
 }
 
+nvic_source_t timer_get_interrupt_source(const tim_id_t timer_id) {
+    return timerid_to_irq[timer_id];
+}
+
 void timer_enable_dma_request(const tim_id_t timer_id, timer_dma_request_t request) {
     assert(timer_id > 0);
     timers[timer_id]->DIER |= BIT(request);

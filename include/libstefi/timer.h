@@ -111,6 +111,8 @@ void timer_disable_dma_request(const tim_id_t timer_id, timer_dma_request_t requ
 /* Interrupts */
 /*--------------------*/
 void timer_enable_interrupt(const tim_id_t);
+/** NVIC line of a timer's update interrupt (e.g. for interrupts_set_priority). */
+nvic_source_t timer_get_interrupt_source(const tim_id_t);
 void timer_disable_interrupt(const tim_id_t);
 void timer_update_interrupt_register_handler(const tim_id_t timer_id, callbackfn_t fn);
 void timer_cc_interrupt_register_handler(const tim_id_t timer_id, timer_interrupt_t channel, callbackfn_t fn);

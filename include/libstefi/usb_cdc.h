@@ -6,17 +6,17 @@
 /**********************************************************************/
 /* USB CDC-ACM device ("virtual COM port") Hardware Abstraction layer */
 /*                                                                    */
-/* Bare-metal full-speed device on the STM32F7 OTG_FS core (PA11/PA12,*/
-/* the user USB connector of the NUCLEO-144). One CDC-ACM function:   */
+/* Bare-metal full-speed device on the OTG_FS core of the STM32F7 and */
+/* STM32L4 (PA11 = D-, PA12 = D+; the user USB connector CN13 of the  */
+/* NUCLEO-144; wired by hand on a NUCLEO-64). One CDC-ACM function:   */
 /* EP1 OUT/IN bulk data (64 B), EP2 IN interrupt (notifications,      */
 /* never sent). No vendor middleware.                                 */
 /*                                                                    */
-/* Requires the 48 MHz USB clock: call system_init() first.           */
-/* Only available when building for STEFI_MCU_STM32F7.                */
+/* Call system_init() first (F7: provides the 48 MHz clock; L4: the   */
+/* driver then starts MSI at 48 MHz, trimmed by the 32.768 kHz LSE).   */
+/* Not on the G4: its USB device block is a different peripheral;     */
+/* usb_cdc_init() returns without doing anything there.               */
 /**********************************************************************/
-#if !defined(STEFI_MCU_STM32F7)
-#error "libstefi/usb_cdc.h needs the STM32F7 OTG_FS core; not available on this MCU family"
-#endif
 
 typedef struct {
     uint16_t vid;

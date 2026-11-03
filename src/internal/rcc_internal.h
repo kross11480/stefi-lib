@@ -23,7 +23,9 @@ typedef struct {
     volatile uint32_t APB1SMENR2;  /*!< RCC APB1 peripheral clocks enable in sleep mode and stop modes register 2, Address offset: 0x7C */
     volatile uint32_t APB2SMENR;   /*!< RCC APB2 peripheral clocks enable in sleep mode and stop modes register, Address offset: 0x80 */
     uint32_t      RESERVED6;   /*!< Reserved,                                                                Address offset: 0x84 */
-    volatile uint32_t CCIPR;
+    volatile uint32_t CCIPR;       /*!< peripherals independent clock config (CLK48SEL [27:26]), 0x88 */
+    uint32_t      RESERVED7;   /*!< Reserved,                                                                Address offset: 0x8C */
+    volatile uint32_t BDCR;        /*!< backup domain control (LSEON [0], LSERDY [1]),                         0x90 */
 } RCC_typeDef;
 
 #define RCC ((RCC_typeDef *) 0x40021000) //Operator precedence remove ()

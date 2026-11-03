@@ -2,6 +2,7 @@
 #include "libstefi/peripheral.h"
 #include "libstefi/util.h"
 #include "../src/internal/rcc_internal.h"
+#include "../src/internal/pwr_internal.h"
 
 typedef struct {
     volatile uint32_t* rcc_reg;
@@ -118,4 +119,39 @@ void peripheral_dma_enable(peripheral_dma_t id)
     // DMAMUX1EN (AHB1ENR bit 2): request routing on G4. Reserved/no-op on L476
     // (which routes via DMA_CSELR instead), so harmless to set on both.
     RCC->AHB1ENR |= BIT(2);
+}
+/*
+ * USB OTG_FS on the L4 (L476): needs a 48 MHz kernel clock accurate to
+ * 0.25 % and the VDDUSB supply declared valid.
+ *   - 48 MHz: MSI range 11, hardware-trimmed against the 32.768 kHz LSE
+ *     (MSIPLLEN) — the NUCLEO-L476RG has the LSE crystal fitted; HSI16-based
+ *     PLL clocks are not accurate enough for USB.
+ *   - CLK48SEL = MSI (also what peripheral_rng_enable() selects).
+ * MSI must not be the system clock while its range jumps to 48 MHz unless
+ * the flash has enough wait states — call system_init() (80 MHz from HSI16)
+ * first; as a fallback the latency is raised here.
+ */
+void peripheral_usb_otg_fs_enable(void)
+{
+    RCC->APB1ENR1 |= BIT(28);                    // PWREN
+    PWR->CR2 |= BIT(10);                         // USV: VDDUSB valid, remove isolation
+
+    // LSE on (backup domain: needs DBP)
+    PWR->CR1 |= BIT(8);                          // DBP
+    if (!(RCC->BDCR & BIT(1))) {
+        RCC->BDCR |= BIT(0);                     // LSEON
+        while (!(RCC->BDCR & BIT(1)));           // LSERDY (can take ~1 s)
+    }
+
+    // MSI -> 48 MHz, locked to LSE
+    if (((RCC->CFGR >> 2) & 0x3u) == 0u) {       // SWS = MSI: running from it
+        FLASH->ACR = (FLASH->ACR & ~0x7u) | 0x2u;   // >= 2 WS for 48 MHz
+    }
+    while (!(RCC->CR & BIT(1)));                 // MSIRDY: range change allowed
+    RCC->CR = (RCC->CR & ~(0xFu << 4)) | (11u << 4) | BIT(3);   // MSIRANGE 11, MSIRGSEL
+    while (!(RCC->CR & BIT(1)));
+    RCC->CR |= BIT(2);                           // MSIPLLEN
+
+    RCC->CCIPR |= (0x3u << 26);                  // CLK48SEL = MSI
+    RCC->AHB2ENR |= BIT(12);                     // OTGFSEN
 }

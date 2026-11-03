@@ -1,12 +1,15 @@
 /*
- * USB oscilloscope on stefi-lib — NUCLEO-F767ZI + analog front-end.
+ * USB oscilloscope on stefi-lib — NUCLEO-F767ZI or NUCLEO-L476RG + analog
+ * front-end.
  *
- * Build: cmake --preset debug -DSTEFI_BOARD=nucleo_f767zi
+ * Build: cmake -B build -DSTEFI_BOARD=nucleo_f767zi      (or nucleo_l476_scope)
  * Flash: openocd -f configs/st_nucleo_f7.cfg \
- *          -c "program cmake-build-debug/examples/10-UsbOscilloscope/usb_oscilloscope verify reset exit"
+ *          -c "program build/examples/10-UsbOscilloscope/usb_oscilloscope verify reset exit"
+ *        (L476: configs/st_nucleo_l4.cfg)
  *
- * Connect CN13 (USB OTG) to the PC and start the PC software; debug output
- * goes to the ST-Link virtual COM port (USART3, 115200 baud).
+ * Connect the USB device port (F767: CN13; L476: PA11/PA12 wired to a USB
+ * connector) to the PC and start the PC software; debug output goes to the
+ * ST-Link virtual COM port (F767: USART3, L476: USART2, 115200 baud).
  */
 #include <stdio.h>
 

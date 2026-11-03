@@ -1,3 +1,4 @@
+#pragma once
 typedef struct
 {
   volatile uint32_t CR1;   /*!< PWR power control register 1,        Address offset: 0x00 */

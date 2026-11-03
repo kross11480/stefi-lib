@@ -113,7 +113,8 @@ typedef struct {
 /* Parallel-output ADC (e.g. LTC1420) sampled by DMA from a GPIO input data
  * register. The data pins must be contiguous on one port, D0 at the lowest
  * pin; the sample clock is a timer PWM output whose update event also
- * raises the DMA request that captures one sample (stream DMA, F7). */
+ * raises the DMA request that captures one sample. F7: buffers of any
+ * length via double-buffered streams; L4/G4: one transfer, <= 65535 samples. */
 typedef struct {
     gpio_id_t data_lsb_pin;      /* D0 */
     uint8_t data_bits;           /* D0..D(n-1) on data_lsb_pin.. */
@@ -126,9 +127,13 @@ typedef struct {
     uint32_t timer_clk_hz;       /* kernel clock of clock_timer */
     uint32_t min_sample_rate_hz;
     uint32_t max_sample_rate_hz;
-    peripheral_dma_t dma;        /* DMA controller/stream/channel serving */
-    uint8_t dma_stream;          /* clock_timer's UPDATE request */
+    /* DMA serving clock_timer's UPDATE request:
+     *   F7:    dma_channel = stream 0..7, dma_request = channel (CHSEL)
+     *   L4:    dma_channel = channel 1..7, dma_request = CSELR selector
+     *   G4:    dma_channel = channel 1..n, dma_request = DMAMUX request ID */
+    peripheral_dma_t dma;
     uint8_t dma_channel;
+    uint8_t dma_request;
 } parallel_adc_config_t;
 
 /* Parallel-input 12-bit DAC with latch (e.g. LTC1450): data D0..D11,

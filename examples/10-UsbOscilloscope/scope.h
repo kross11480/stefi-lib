@@ -16,8 +16,17 @@
 #include "event_fsm.h"
 #include "libstefi/gpio.h"
 
-/* One acquisition = 100 000 samples (200 000 bytes on the wire). */
+/* Samples per acquisition (2 bytes each on the wire):
+ *   F767 (512 KB RAM): 100 000, as in V1 — the PC software expects 200 000 bytes
+ *   L476 (128 KB RAM):  32 768 — set datalength = 65536 in the PC software
+ *                       (usb_oszi_pc_fsm.py), or ask with GET_NUM_SAMPLES */
+#if defined(STEFI_MCU_STM32F7)
 #define SCOPE_NUM_SAMPLES        100000u
+#define SCOPE_FILTER_INPLACE     0     /* separate 200 KB output buffer */
+#else
+#define SCOPE_NUM_SAMPLES        32768u
+#define SCOPE_FILTER_INPLACE     1     /* no RAM for a second buffer */
+#endif
 
 #define SCOPE_DEFAULT_RATE_HZ    10000000u
 #define SCOPE_DEFAULT_VREF_MV    4095u

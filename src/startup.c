@@ -33,6 +33,10 @@ extern void DMA1_Channel5_IRQHandler(void);
 extern void DMA1_Channel6_IRQHandler(void);
 extern void DMA1_Channel7_IRQHandler(void);
 
+/* Weak: only linked in when the app uses libstefi/usb_cdc.h (L4 OTG_FS).
+ * Unresolved, the slot stays 0 — the IRQ is never enabled then. */
+extern void OTG_FS_IRQHandler(void) __attribute__((weak));
+
 extern void main();
 
 void Reset_Handler(void)
@@ -112,6 +116,6 @@ void (* const paIsrFunc[16+102])(void) =
 	0, 0, 0, 0, 0, 0, 0, 0, 0,
 	TIM6_IRQHandler,            /*  54 (0x00000118)  TIM6 + DAC1/3 underrun global interrupts */
 	TIM7_IRQHandler,            /*  55 (0x0000011C)  TIM7 + DAC2/4 underrun global interrupts */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-	0,
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /*  56..66 */
+	OTG_FS_IRQHandler,          /*  67 (0x0000014C)  L4: USB OTG FS (G4: unused here) */
 };

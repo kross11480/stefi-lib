@@ -23,9 +23,15 @@ target_compile_options(libstefi PUBLIC
         -g -Wall -std=c99 -ffreestanding
 )
 
+# A board may bring its own memory layout (boards/<b>/board.cmake).
+if(STEFI_BOARD_LINKER_SCRIPT)
+    set(STEFI_DEFAULT_LINKER_SCRIPT ${STEFI_BOARD_LINKER_SCRIPT})
+endif()
+
 # Linker script: overridable by an application with a different memory
-# layout. Empty means "the family default" (configs/link.ld for L4/G4,
-# configs/link_stm32f767.ld for the F7).
+# layout. Empty means "the board's or family default" (configs/link.ld for
+# L4/G4, configs/link_stm32f767.ld for the F7, link_stm32l476.ld for
+# nucleo_l476_scope).
 set(STEFI_LINKER_SCRIPT "" CACHE FILEPATH
         "Linker script for executables linking stefi::hal (empty: MCU family default)")
 if(STEFI_LINKER_SCRIPT)

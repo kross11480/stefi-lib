@@ -33,7 +33,8 @@ typedef struct {
  * DMAMUX1 (G4 only). One CCR per request line; the low byte (DMAREQ_ID)
  * selects which peripheral request drives that channel. DMAMUX channels
  * are 0-based and map to DMA channels in order: mux 0..7 -> DMA1 ch1..8,
- * mux 8..15 -> DMA2 ch1..8. Used in phase 5 (UART TX request routing).
+ * mux 8..15 -> DMA2 ch1..8 (G47x; on the 6-channel G431 DMA2 starts at mux 6).
+ * Selected at run time in dma.c (internal/mcu_id.h).
  */
 typedef struct {
     volatile uint32_t CCR;     /*!< request line config (DMAREQ_ID[7:0] in bits 0..7) */

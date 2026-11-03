@@ -20,25 +20,6 @@
 #error "libstefi/dma_stream.h is the STM32F7 stream DMA; not available on this MCU family"
 #endif
 
-typedef enum {
-    DMA_DIR_PERIPH_TO_MEM = 0,
-    DMA_DIR_MEM_TO_PERIPH = 1,
-    DMA_DIR_MEM_TO_MEM    = 2,   /* DMA2 only */
-} dma_dir_t;
-
-typedef enum {
-    DMA_WIDTH_8  = 0,
-    DMA_WIDTH_16 = 1,
-    DMA_WIDTH_32 = 2,
-} dma_width_t;
-
-typedef enum {
-    DMA_PRIORITY_LOW = 0,
-    DMA_PRIORITY_MEDIUM,
-    DMA_PRIORITY_HIGH,
-    DMA_PRIORITY_VERY_HIGH,
-} dma_priority_t;
-
 /* Per-stream event flags, normalised to the stream-0 bit positions of
  * DMA_LISR. Passed to the stream callback. */
 #define DMA_STREAM_FLAG_FE  (1u << 0)   /* FIFO error           */

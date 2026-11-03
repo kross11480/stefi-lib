@@ -2,8 +2,9 @@
 #include <stdint.h>
 
 /**********************************************************************/
-/* STM32F7 USB OTG_FS (Synopsys DWC2 core) — private register map     */
-/* RM0410 §42. Device mode only; slave (non-DMA) FIFO access.         */
+/* USB OTG_FS (Synopsys DWC2 core) — private register map             */
+/* STM32F7: RM0410 §42, STM32L4: RM0351 §47 (same core, same base).   */
+/* Device mode only; slave (non-DMA) FIFO access.                     */
 /**********************************************************************/
 #define OTG_FS_BASE 0x50000000u
 
@@ -62,7 +63,7 @@
 #define GINT_IEPINT       (1u << 18)
 #define GINT_OEPINT       (1u << 19)
 #define GINT_WKUPINT      (1u << 31)
-/* GCCFG (F7 core) */
+/* GCCFG (F7 / L4 core) */
 #define GCCFG_PWRDWN      (1u << 16)
 #define GCCFG_VBDEN       (1u << 21)
 /* GOTGCTL */

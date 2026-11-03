@@ -26,6 +26,39 @@ Plug the user USB connector (CN13) into the PC; the board enumerates as a
 CDC virtual COM port (VID:PID `0483:5740`, as with the ST stack). Debug
 `printf` goes to the ST-Link COM port (USART3, 115200 baud).
 
+## Port to the NUCLEO-L476RG
+
+The same application also builds for an L476 (`-DSTEFI_BOARD=nucleo_l476_scope`,
+flash with `configs/st_nucleo_l4.cfg`). The front-end PCB is made for the
+NUCLEO-144 headers, so on the NUCLEO-64 it is wired by hand:
+
+| Signal | F767 | L476 |
+|---|---|---|
+| ADC D0..D11, OF | PF3..PF14, PF15 | PC0..PC11, PC12 |
+| ADC clock (TIM1_CH1) | PE9 | PA8 |
+| Trigger (comparator) | PF2 / EXTI2 | PA0 / EXTI0 |
+| DAC D0..D11, /CLR, /LD | PE2..PE8, PE10..PE14, PE0, PE1 | PB0..PB11, PB12, PB13 |
+| USB D-/D+ | CN13 | PA11/PA12 to a USB connector |
+| Capture DMA | DMA2 stream 5 ch 6 (double buffer) | DMA1 channel 6, CSELR 7 (single transfer) |
+| printf | USART3 | USART2 |
+| Status LEDs | LD1..LD3 (state 1..6) | LD2 only (bit 0) |
+
+What changes with the smaller MCU:
+
+- **Record length 32 768 samples** (65 536 bytes) instead of 100 000: the
+  L476 has 128 KB RAM. The PC software has `datalength = 200_000` hard-coded
+  in `usb_oszi_pc_fsm.py` — set it to `65_536`, or query the board with the
+  new `GET_NUM_SAMPLES` command (`NUM_SAMPLES: 32768`).
+- **Max. 5 MSPS** (board table; conservative, not yet measured): one DMA
+  beat per sample at 80 MHz. Rates are 80 MHz / n.
+- **Moving average in place** (no RAM for a second buffer), windows up to
+  1025 points; wider requests report `MOVING_AVERAGE: 0`.
+- **USB clock**: MSI at 48 MHz, hardware-trimmed by the 32.768 kHz LSE
+  crystal of the NUCLEO-L476RG (`usb_cdc_init()` starts it; the first start
+  waits for the LSE, up to about a second).
+- **5 V pull-ups on the DAC lines** need 5 V tolerant pins — check
+  DS10198 for PB0..PB13, or pull up to 3.3 V (enough for the LTC1450).
+
 ## Layers
 
 | Layer | What the oscilloscope uses |
@@ -33,7 +66,7 @@ CDC virtual COM port (VID:PID `0483:5740`, as with the ST stack). Debug
 | App (`examples/10-UsbOscilloscope`) | `scope_fsm.c` acquisition state machine, `scope_protocol.c` PC commands, `scope_hw.c` actions |
 | Components | `parallel_adc` (LTC1420 capture), `ref_dac` (LTC1450), `edge_trigger` (LT1714 comparator), `cmd_line`, `event_fsm`, `dsp`, SimpleIO (LEDs, button) |
 | Board (`boards/nucleo_f767zi`) | pin/timer/DMA tables for the front-end, 200 MHz clock in `board_init()` |
-| HAL, STM32F7 family | GPIO/EXTI, timers (+ DMA requests), stream DMA (`dma_stream.h`), USB CDC (`usb_cdc.h`), USART3, NVIC priorities |
+| HAL | GPIO/EXTI, timers (+ DMA requests), DMA (`dma_stream.h` F7 / `dma_channel.h` L4/G4), USB CDC (`usb_cdc.h`, F7 + L4), UART, NVIC priorities |
 
 What each piece replaces from V1:
 
@@ -84,6 +117,7 @@ Newline-terminated text commands from the PC, replies from the scope:
 | `READY_FOR_DATA` | 200 000 bytes (100 000 × int16, little endian) + 1 overflow byte (`0xFF`/`0x00`) |
 | `RECEIVED` | `STATE:WAIT_FOR_ACK` |
 | `CONTINUE` / `STOP` | next acquisition / `STATE:IDLE` |
+| `GET_NUM_SAMPLES` (not in V1) | `NUM_SAMPLES: <n>` (100000 F767, 32768 L476) |
 | anything else | `ERR:UNKNOWN_CMD` |
 
 The user button B1 forces an acquisition while waiting for the trigger.
@@ -106,5 +140,5 @@ state number 1..6 as in V1.
 `sh tests/host/run.sh` replays the PC software's command sequence against
 the real state machine and protocol code and checks the conversion and
 filter against the V1 algorithms. The hardware drivers (USB CDC, capture
-DMA, clocks) are build-tested; bring-up on the NUCLEO-F767ZI and front-end
-board is still to be done.
+DMA, clocks) are build-tested; bring-up on the NUCLEO-F767ZI / NUCLEO-L476RG
+with the front-end board is still to be done.

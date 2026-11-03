@@ -7,6 +7,7 @@
 #include "libstefi/dma.h"
 #include "internal/uart_internal.h"
 #include "internal/rcc_internal.h"
+#include "internal/mcu_id.h"
 #include "libstefi/util.h"
 
 //Default Uart2 on A2,A3
@@ -56,18 +57,26 @@ void uart_poll_out(const char *buf, uint32_t len)
 
 /*
  * USART2_TX over DMA. On STM32L4 the TX request maps to DMA1 channel 7 with
- * DMA_CSELR selector 2 (RM0351 DMA request table). (G4 routes the same request
- * through DMAMUX instead — see dma_mem_to_periph's seam.) Blocking: returns once
- * the last byte has shifted out, so it composes with poll-based printf.
+ * DMA_CSELR selector 2 (RM0351 DMA request table); on the G4 any channel works,
+ * routed through DMAMUX request 27 (RM0440 table 91; the G431 has no channel 7).
+ * Blocking: returns once the last byte has shifted out, so it composes with
+ * poll-based printf.
  */
-#define USART2_TX_DMA_CHANNEL  7u
-#define USART2_TX_DMA_REQUEST  2u   /* L4 CSELR C7S = USART2_TX */
+#define L4_USART2_TX_DMA_CHANNEL  7u
+#define L4_USART2_TX_DMA_REQUEST  2u   /* L4 CSELR C7S = USART2_TX */
+#define G4_USART2_TX_DMA_CHANNEL  1u
+#define G4_USART2_TX_DMAMUX_ID   27u   /* G4 DMAMUX USART2_TX */
 
 void uart_dma_out(const char *buf, uint32_t len)
 {
     uart->CR3 |= BIT(7);            // DMAT: drive the TX from DMA
-    dma_mem_to_periph(USART2_TX_DMA_CHANNEL, USART2_TX_DMA_REQUEST,
-                      &uart->TDR, buf, len);
+    if (mcu_is_g4()) {
+        dma_mem_to_periph(G4_USART2_TX_DMA_CHANNEL, G4_USART2_TX_DMAMUX_ID,
+                          &uart->TDR, buf, len);
+    } else {
+        dma_mem_to_periph(L4_USART2_TX_DMA_CHANNEL, L4_USART2_TX_DMA_REQUEST,
+                          &uart->TDR, buf, len);
+    }
     while (!(uart->ISR & BIT(6)));  // wait TC (last byte fully shifted out)
     uart->CR3 &= ~BIT(7);          // release TX so poll-based printf still works
 }

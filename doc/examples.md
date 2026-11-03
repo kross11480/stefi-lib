@@ -56,6 +56,6 @@ them with the normal presets; the ELF ends up in
     The [USB oscilloscope](usb-oscilloscope.md) as a stefi-lib application:
     10 MSPS parallel-ADC capture by DMA, comparator trigger, DAC-set reference
     voltage and a USB CDC link to the PC software.
-    Builds only with `-DSTEFI_BOARD=nucleo_f767zi`.
+    Builds with `-DSTEFI_BOARD=nucleo_f767zi` or `-DSTEFI_BOARD=nucleo_l476_scope`.
 
 </div>

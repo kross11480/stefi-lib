@@ -1,14 +1,22 @@
 /**********************************************************************/
-/* USB CDC-ACM device on the STM32F7 OTG_FS core (slave / FIFO mode)  */
+/* USB CDC-ACM device on the OTG_FS core (Synopsys DWC2, slave/FIFO   */
+/* mode) of the STM32F7 and STM32L4. The core, its register map and   */
+/* PA11/PA12 AF10 are the same on both; the family-specific part —    */
+/* bus clock, 48 MHz kernel clock, USB supply — is in                 */
+/* peripheral_usb_otg_fs_enable() (src/peripheral.c, src/stm32f7/).   */
 /**********************************************************************/
 #include "libstefi/usb_cdc.h"
 #include "libstefi/gpio.h"
 #include "libstefi/peripheral.h"
 #include "libstefi/interrupts.h"
 #include "libstefi/util.h"
-#include "internal/usb_otg_f7.h"
+#include "internal/usb_otg_dwc2.h"
 
 #include <stddef.h>
+
+#if defined(STEFI_MCU_STM32L4G4)
+#include "internal/mcu_id.h"
+#endif
 
 #define EP0_MPS        64u
 #define DATA_MPS       64u
@@ -453,6 +461,9 @@ bool usb_cdc_dtr(void) { return usb.dtr; }
 
 void usb_cdc_init(const usb_cdc_config_t *cfg)
 {
+#if defined(STEFI_MCU_STM32L4G4)
+    if (mcu_is_g4()) return;   // the G4 has the "USB" device block, not OTG_FS
+#endif
     if (cfg) ident = *cfg;
     device_desc[8]  = (uint8_t) ident.vid;
     device_desc[9]  = (uint8_t) (ident.vid >> 8);
@@ -481,7 +492,7 @@ void usb_cdc_init(const usb_cdc_config_t *cfg)
     // force device mode (takes effect after >= 25 ms)
     OTG_GUSBCFG = (OTG_GUSBCFG & ~(GUSBCFG_FHMOD | GUSBCFG_FDMOD | GUSBCFG_TRDT_MSK))
                 | GUSBCFG_FDMOD | (6u << GUSBCFG_TRDT_POS);
-    for (volatile uint32_t i = 0; i < 2000000u; i++);   /* ~50 ms at 200 MHz */
+    for (volatile uint32_t i = 0; i < 2000000u; i++);   /* ~50 ms at 200 MHz, ~120 ms at 80 MHz */
 
     // device: no VBUS sensing on PA9, force B-session valid instead
     OTG_DCTL |= DCTL_SDIS;

@@ -12,9 +12,13 @@
  * update event — once per sample period, half a period away from the
  * clock's active edge — raises a DMA request. The DMA stream copies the
  * GPIO input data register (data pins + overflow flag) into RAM, with no
- * CPU involvement. Buffers larger than one DMA transfer (65535 items) are
- * split into equal segments and chained through the stream's double-buffer
- * mode: while one target fills, the ISR re-points the other one.
+ * CPU involvement.
+ *
+ *   F7 (stream DMA): buffers larger than one DMA transfer (65535 items) are
+ *   split into equal segments and chained through the stream's double-buffer
+ *   mode: while one target fills, the ISR re-points the other one.
+ *   L4/G4 (channel DMA): one transfer, so at most 65535 samples per capture
+ *   (the L476 has 128 KB RAM — that limit is not the binding one anyway).
  *
  *   parallel_adc_init();
  *   parallel_adc_set_sample_rate(1000000);
@@ -43,8 +47,9 @@ uint32_t parallel_adc_get_sample_rate(void);
 /**
  * @brief Prepare a capture of @p n samples into @p buf (stream left idle).
  *
- * @p n must split into equal segments of <= 65535 samples (at least 2):
+ * F7: @p n must split into equal segments of <= 65535 samples (at least 2):
  * e.g. any even n up to 131070, or 100000 = 2 x 50000.
+ * L4/G4: 1 <= n <= 65535.
  * @param done  called from the DMA interrupt when the buffer is full
  * @return false if n cannot be segmented or a capture is running
  */

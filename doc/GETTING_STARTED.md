@@ -7,6 +7,7 @@
 | `nucleo_l476` (default) | STM32L476RG | STefi adapter board on NUCLEO-L476RG (LEDs, buttons, OLED, FRAM) |
 | `rohmi_g431` | STM32G431KB | RobOhmobil robot on NUCLEO-G431KB (motors, line sensors, IMU) |
 | `nucleo_f767zi` | STM32F767ZI | NUCLEO-F767ZI + USB-oscilloscope front-end (parallel ADC/DAC, trigger, USB CDC) |
+| `nucleo_l476_scope` | STM32L476RG | NUCLEO-L476RG wired to the USB-oscilloscope front-end (128 KB linker script) |
 
 ## Prerequisites
 
@@ -60,13 +61,17 @@ A board's optional `boards/<name>/board.cmake` selects the MCU family; the
 build then compiles that family's HAL sources and defines `STEFI_MCU_STM32L4G4`
 or `STEFI_MCU_STM32F7` for every target linking `stefi::hal`.
 
-- **STM32L4G4** (L476, G431): the full HAL in `src/`.
+- **STM32L4G4** (L476, G431): the full HAL in `src/`. Where L4 and G4
+  differ, the driver reads the device ID at run time (`src/internal/mcu_id.h`):
+  `libstefi/dma_channel.h` routes DMA requests through `DMA_CSELR` on the L4
+  and DMAMUX on the G4. `libstefi/usb_cdc.h` works on the L4 (OTG_FS, 48 MHz
+  MSI trimmed by the LSE crystal), not on the G4 (different USB block).
 - **STM32F7** (F767): GPIO/EXTI, timers, SysTick, interrupts and the ring
   buffer are shared with L4/G4 (only base addresses differ, chosen in
   `src/internal/`); RCC/clock, startup, USART3, DMA and USB live in
-  `src/stm32f7/`. F7-only APIs: `libstefi/dma_stream.h` (stream DMA with
-  double-buffer mode) and `libstefi/usb_cdc.h` (USB CDC virtual COM port on
-  OTG_FS). I2C, SPI, ADC, RNG, WWDG and flash are not ported to the F7 yet.
+  `src/stm32f7/`; the USB CDC driver (`src/usb_cdc_dwc2.c`) is shared with
+  the L4. F7-only API: `libstefi/dma_stream.h` (stream DMA with
+  double-buffer mode). I2C, SPI, ADC, RNG, WWDG and flash are not ported to the F7 yet.
   `board_init()` on the F767 *does* call `system_init()` (200 MHz): USB needs
   its 48 MHz clock.
 

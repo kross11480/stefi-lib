@@ -2,18 +2,38 @@
 
 #include "stefi_board.h"
 
-#include "libstefi/dma_stream.h"
 #include "libstefi/gpio.h"
 #include "libstefi/timer.h"
 
 #include <stddef.h>
 
+/*
+ * DMA backend: the F7 stream controller (double-buffer chaining) or the
+ * L4/G4 channel controller (single transfer). Everything else — pins,
+ * sample clock, conversion — is shared.
+ */
+#if defined(STEFI_MCU_STM32F7)
+#include "libstefi/dma_stream.h"
+#define CAP_FLAG_TC          DMA_STREAM_FLAG_TC
+#define CAP_FLAG_ERR         (DMA_STREAM_FLAG_TE | DMA_STREAM_FLAG_DME)
+#define cap_dma_disable()    dma_stream_disable(parallel_adc.dma, parallel_adc.dma_channel)
+#define cap_dma_enable()     dma_stream_enable(parallel_adc.dma, parallel_adc.dma_channel)
+#define cap_dma_irq()        dma_stream_irq(parallel_adc.dma, parallel_adc.dma_channel)
+#define cap_dma_register(fn) dma_stream_register_handler(parallel_adc.dma, parallel_adc.dma_channel, fn, NULL)
+#define CAP_DOUBLE_BUFFER    1
+#else
+#include "libstefi/dma_channel.h"
+#define CAP_FLAG_TC          DMA_CHANNEL_FLAG_TC
+#define CAP_FLAG_ERR         DMA_CHANNEL_FLAG_TE
+#define cap_dma_disable()    dma_channel_disable(parallel_adc.dma, parallel_adc.dma_channel)
+#define cap_dma_enable()     dma_channel_enable(parallel_adc.dma, parallel_adc.dma_channel)
+#define cap_dma_irq()        dma_channel_irq(parallel_adc.dma, parallel_adc.dma_channel)
+#define cap_dma_register(fn) dma_channel_register_handler(parallel_adc.dma, parallel_adc.dma_channel, fn, NULL)
+#define CAP_DOUBLE_BUFFER    0
+#endif
+
 #define MAX_DMA_ITEMS  65535u
 #define MAX_SEGMENTS   64u
-/* Sink for the stream between the last segment's completion and the
- * interrupt disabling it (the double-buffer stream never stops by itself).
- * At 10 MSPS this covers 100 us of interrupt latency. */
-#define SCRATCH_ITEMS  1024u
 
 static struct {
     uint32_t rate_hz;
@@ -29,7 +49,13 @@ static struct {
     void *aux;
 } cap;
 
+#if CAP_DOUBLE_BUFFER
+/* Sink for the stream between the last segment's completion and the
+ * interrupt disabling it (the double-buffer stream never stops by itself).
+ * At 10 MSPS this covers 100 us of interrupt latency. */
+#define SCRATCH_ITEMS  1024u
 static uint16_t scratch[SCRATCH_ITEMS];
+#endif
 
 static inline uint16_t *segment(uint32_t i)
 {
@@ -38,7 +64,7 @@ static inline uint16_t *segment(uint32_t i)
 
 static void finish(bool error)
 {
-    dma_stream_disable(parallel_adc.dma, parallel_adc.dma_stream);
+    cap_dma_disable();
     cap.error = error;
     cap.running = false;
     cap.busy = false;
@@ -50,26 +76,28 @@ static void on_dma(void *aux, uint32_t flags)
     (void) aux;
     if (!cap.running) return;
 
-    if (flags & (DMA_STREAM_FLAG_TE | DMA_STREAM_FLAG_DME)) {
+    if (flags & CAP_FLAG_ERR) {
         finish(true);
         return;
     }
-    if (!(flags & DMA_STREAM_FLAG_TC)) return;
+    if (!(flags & CAP_FLAG_TC)) return;
 
     if (++cap.done_segs >= cap.segs) {
         finish(false);
         return;
     }
+#if CAP_DOUBLE_BUFFER
     // The target that just completed is the one the stream left (CT flipped):
     // give it the next segment, or the scratch sink once all are handed out.
-    uint8_t finished = dma_stream_current_target(parallel_adc.dma, parallel_adc.dma_stream) ^ 1u;
+    uint8_t finished = dma_stream_current_target(parallel_adc.dma, parallel_adc.dma_channel) ^ 1u;
     uint16_t *next = (cap.next_seg < cap.segs) ? segment(cap.next_seg++) : scratch;
-    dma_stream_set_memory(parallel_adc.dma, parallel_adc.dma_stream, finished, next);
+    dma_stream_set_memory(parallel_adc.dma, parallel_adc.dma_channel, finished, next);
+#endif
 }
 
 void parallel_adc_set_priority(uint8_t priority)
 {
-    interrupts_set_priority(dma_stream_irq(parallel_adc.dma, parallel_adc.dma_stream), priority);
+    interrupts_set_priority(cap_dma_irq(), priority);
 }
 
 void parallel_adc_init(void)
@@ -100,7 +128,7 @@ void parallel_adc_init(void)
     timer_enable_dma_request(c->clock_timer, TIMER_DMA_UPDATE);
     timer_start(c->clock_timer);
 
-    dma_stream_register_handler(c->dma, c->dma_stream, on_dma, NULL);
+    cap_dma_register(on_dma);
     parallel_adc_set_priority(0);
 }
 
@@ -134,9 +162,14 @@ bool parallel_adc_prepare(uint16_t *buf, uint32_t n, parallel_adc_done_t done, v
 {
     if (cap.busy || buf == NULL) return false;
 
+#if CAP_DOUBLE_BUFFER
     uint32_t segs = 2;
     while (segs <= MAX_SEGMENTS && ((n % segs) != 0 || n / segs > MAX_DMA_ITEMS)) segs++;
     if (segs > MAX_SEGMENTS || n / segs == 0) return false;
+#else
+    if (n == 0 || n > MAX_DMA_ITEMS) return false;
+    uint32_t segs = 1;
+#endif
 
     cap.buf = buf;
     cap.segs = segs;
@@ -149,10 +182,12 @@ bool parallel_adc_prepare(uint16_t *buf, uint32_t n, parallel_adc_done_t done, v
     cap.aux = aux;
 
     const parallel_adc_config_t *c = &parallel_adc;
+    GPIO_typeDef *port = gpio_get_base_address(c->data_lsb_pin);
+#if CAP_DOUBLE_BUFFER
     const dma_stream_config_t cfg = {
         .dma = c->dma,
-        .stream = c->dma_stream,
-        .channel = c->dma_channel,
+        .stream = c->dma_channel,
+        .channel = c->dma_request,
         .dir = DMA_DIR_PERIPH_TO_MEM,
         .periph_width = DMA_WIDTH_16,   // IDR low half-word = the port pins
         .mem_width = DMA_WIDTH_16,
@@ -162,8 +197,22 @@ bool parallel_adc_prepare(uint16_t *buf, uint32_t n, parallel_adc_done_t done, v
         .irq_tc = true,
         .irq_te = true,
     };
-    GPIO_typeDef *port = gpio_get_base_address(c->data_lsb_pin);
     dma_stream_configure(&cfg, &port->IDR, segment(0), segment(1), (uint16_t) cap.seg_len);
+#else
+    const dma_channel_config_t cfg = {
+        .dma = c->dma,
+        .channel = c->dma_channel,
+        .request = c->dma_request,
+        .dir = DMA_DIR_PERIPH_TO_MEM,
+        .periph_width = DMA_WIDTH_16,   // IDR low half-word = the port pins
+        .mem_width = DMA_WIDTH_16,
+        .mem_inc = true,
+        .priority = DMA_PRIORITY_VERY_HIGH,
+        .irq_tc = true,
+        .irq_te = true,
+    };
+    dma_channel_configure(&cfg, &port->IDR, segment(0), (uint16_t) cap.seg_len);
+#endif
     cap.busy = true;
     return true;
 }
@@ -172,7 +221,7 @@ void parallel_adc_start(void)
 {
     if (!cap.busy || cap.running) return;
     cap.running = true;
-    dma_stream_enable(parallel_adc.dma, parallel_adc.dma_stream);
+    cap_dma_enable();
 }
 
 bool parallel_adc_busy(void) { return cap.busy; }
@@ -181,7 +230,7 @@ bool parallel_adc_error(void) { return cap.error; }
 
 void parallel_adc_abort(void)
 {
-    dma_stream_disable(parallel_adc.dma, parallel_adc.dma_stream);
+    cap_dma_disable();
     cap.running = false;
     cap.busy = false;
 }

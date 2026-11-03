@@ -15,6 +15,7 @@
  *                                         overflow (0xFF / 0x00)
  *   RECEIVED                              STATE:WAIT_FOR_ACK
  *   CONTINUE | STOP                       STATE:ACQUISITION_START | STATE:IDLE
+ *   GET_NUM_SAMPLES (stefi addition)      NUM_SAMPLES: <samples per acquisition>
  *   anything else                         ERR:UNKNOWN_CMD
  */
 #include "scope.h"
@@ -93,6 +94,14 @@ static void cmd_movavg(const char *args, void *x)
     post(EV_CONFIGURE_MOV_AVG);
 }
 
+/* Not in V1: the record length differs per board (100000 F767, 32768 L476).
+ * Answered in any state; does not touch the state machine. */
+static void cmd_num_samples(const char *a, void *x)
+{
+    (void) a; (void) x;
+    scope_reply("NUM_SAMPLES: %lu", (unsigned long) SCOPE_NUM_SAMPLES);
+}
+
 static const cmd_entry_t commands[] = {
     {"RESET",                    cmd_reset},
     {"APP",                      cmd_app},
@@ -106,6 +115,7 @@ static const cmd_entry_t commands[] = {
     {"RECEIVED",                 cmd_received},
     {"CONTINUE",                 cmd_continue},
     {"STOP",                     cmd_stop},
+    {"GET_NUM_SAMPLES",          cmd_num_samples},
 };
 
 static void on_line(const char *line, void *aux)

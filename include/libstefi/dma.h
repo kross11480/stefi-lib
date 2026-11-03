@@ -9,6 +9,27 @@
 /* DMA  (Direct Memory Access)  Hardware Abstraction layer            */
 /**********************************************************************/
 
+/* Transfer parameters shared by the controller-specific APIs:
+ * libstefi/dma_channel.h (L4/G4 channels) and libstefi/dma_stream.h (F7). */
+typedef enum {
+    DMA_DIR_PERIPH_TO_MEM = 0,
+    DMA_DIR_MEM_TO_PERIPH = 1,
+    DMA_DIR_MEM_TO_MEM    = 2,
+} dma_dir_t;
+
+typedef enum {
+    DMA_WIDTH_8  = 0,
+    DMA_WIDTH_16 = 1,
+    DMA_WIDTH_32 = 2,
+} dma_width_t;
+
+typedef enum {
+    DMA_PRIORITY_LOW = 0,
+    DMA_PRIORITY_MEDIUM,
+    DMA_PRIORITY_HIGH,
+    DMA_PRIORITY_VERY_HIGH,
+} dma_priority_t;
+
 /**
  * @brief Blocking memory-to-memory copy using one DMA channel.
  *
@@ -33,7 +54,8 @@ void dma_mem_to_mem(peripheral_dma_t dma, uint8_t channel,
  * feed a peripheral's data register (e.g. USART2->TDR). DMA1 only.
  *
  * @param channel     1-based DMA1 channel the peripheral's request maps to
- * @param request     request selector (L4: DMA_CSELR value for the channel)
+ * @param request     request selector (L4: DMA_CSELR value for the channel,
+ *                    G4: DMAMUX request ID — see dma_channel.h)
  * @param periph_reg  peripheral data register address (fixed, not incremented)
  * @param src         memory buffer
  * @param len         number of bytes

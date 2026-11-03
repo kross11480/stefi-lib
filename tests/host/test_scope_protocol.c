@@ -47,6 +47,7 @@ int main(void){
     pc("CONFIGURE_MOV_AVG 51\n");               expect("MOVING_AVERAGE: 51\n"); clear();
     pc("CONFIGURE_MOV_AVG 50\n");               expect("MOVING_AVERAGE: 0\n"); clear();
     pc("BOGUS\n");                              expect("ERR:UNKNOWN_CMD\n"); clear();
+    pc("GET_NUM_SAMPLES\n");                    expect("NUM_SAMPLES: 32768\n"); clear();   /* host = non-F7 */
     for (int round=0; round<2; round++) {
         pc(round ? "CONTINUE\n" : "RUN_START\n"); expect("STATE:ACQUISITION_START\n"); assert(armed==round+1); clear();
         pc("READY_FOR_DATA\n"); assert(data_bytes==0);   /* ignored before the capture is done */

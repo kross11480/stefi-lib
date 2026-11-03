@@ -2,6 +2,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <stdbool.h>
 #include "cmd_line.h"
 #include "dsp.h"
 
@@ -43,6 +44,19 @@ int main(void){
         for(int i=0;i<half;i++) assert(y[i]==x[i] && y[N-1-i]==x[N-1-i]);
     }
     assert(!dsp_moving_average_i16(x,y,N,2) && !dsp_moving_average_i16(x,y,N,0) && !dsp_moving_average_i16(x,y,5,7));
+
+    /* in-place variant == out-of-place, for many windows and lengths */
+    static int16_t z[N];
+    unsigned ws[] = {1,3,5,51,101,513,1025};
+    uint32_t ns[] = {N, 1025, 2000, 77};
+    for (unsigned a=0; a<sizeof ws/sizeof ws[0]; a++) for (unsigned b=0; b<4; b++) {
+        uint32_t n=ns[b], w=ws[a];
+        memcpy(z,x,n*sizeof z[0]);
+        bool ok1 = dsp_moving_average_i16(x,y,n,w), ok2 = dsp_moving_average_i16_inplace(z,n,w);
+        assert(ok1==ok2);
+        if (ok1) assert(memcmp(y,z,n*sizeof z[0])==0);
+    }
+    assert(!dsp_moving_average_i16_inplace(z,N,1027));
 
     /* parallel_adc_convert logic (same expression as the component) vs V1 */
     for (uint32_t raw=0; raw<0x10000; raw++){

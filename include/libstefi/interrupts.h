@@ -44,8 +44,8 @@ enum _nvic_interrupt_sources {
     INTERRUPT_SOURCE_DMA1_STREAM7 = 47,
     INTERRUPT_SOURCE_DMA2_STREAM0 = 56,      /* streams 0..4 contiguous */
     INTERRUPT_SOURCE_DMA2_STREAM5 = 68,      /* streams 5..7 contiguous */
-    INTERRUPT_SOURCE_OTG_FS = 67,
 #endif
+    INTERRUPT_SOURCE_OTG_FS = 67,            /* F7 and L4 (not on G4) */
 };
 
 typedef enum _nvic_interrupt_sources nvic_source_t;

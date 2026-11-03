@@ -51,8 +51,8 @@ parallel_adc_config_t parallel_adc = {
     .min_sample_rate_hz = 20000,      // LTC1420 datasheet minimum
     .max_sample_rate_hz = 10000000,   // LTC1420: 10 MSPS
     .dma = PERIPHERAL_DMA2,
-    .dma_stream = 5,
-    .dma_channel = 6,          // TIM1_UP
+    .dma_channel = 5,          // stream 5
+    .dma_request = 6,          // channel 6 = TIM1_UP
 };
 
 ref_dac_config_t ref_dac = {
