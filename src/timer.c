@@ -5,6 +5,11 @@
 #include <libstefi/peripheral.h>
 #include <libstefi/util.h>
 #include "internal/timer_internal.h"
+#if defined(STEFI_MCU_STM32L4G4)
+#include "internal/mcu_id.h"
+#else
+static inline bool mcu_is_g4(void) { return false; }
+#endif
 
 TIM_t *timers[] = {(TIM_t*) NULL, TIM1_BASE, TIM2_BASE, TIM3_BASE, TIM4_BASE, NULL, TIM6_BASE, TIM7_BASE, TIM8_BASE,
     NULL, NULL, NULL, NULL, NULL, NULL, TIM15_BASE, TIM16_BASE, TIM17_BASE, NULL, NULL, NULL};
@@ -265,6 +270,40 @@ volatile uint32_t *timer_ccr_address(const tim_id_t timer_id, timer_channel_t ch
         case 3: return &tim->CCR3;
         default: return &tim->CCR4;
     }
+}
+
+void timer_set_oc_mode(const tim_id_t timer_id, timer_channel_t channel, timer_oc_mode_t mode) {
+    assert(timer_id > 0);
+    TIM_t *tim = timers[timer_id];
+    volatile uint32_t *ccmr = (channel <= 2) ? &tim->CCMR1 : &tim->CCMR2;
+    uint32_t shift = (channel & 1u) ? 0u : 8u;
+    uint32_t v = *ccmr & ~((0xFFu | BIT(16)) << shift);          // CCxS = output, OCxM, OCxPE
+    v |= ((uint32_t) mode << (shift + 4u));
+    if (mode >= TIMER_OC_PWM1) v |= BIT(3) << shift;             // preload for PWM
+    *ccmr = v;
+}
+
+void timer_enable_complementary(const tim_id_t timer_id, timer_channel_t channel, bool active_high) {
+    assert(timer_id > 0);
+    TIM_t *tim = timers[timer_id];
+    uint32_t sh = (channel - 1u) * 4u;
+    tim->CCER = (tim->CCER & ~(1u << (sh + 3u))) | (active_high ? 0u : (1u << (sh + 3u))) | (1u << (sh + 2u));
+    tim->BDTR |= BIT(15);                                        // MOE
+}
+
+void timer_cc_interrupt(const tim_id_t timer_id, timer_channel_t channel, bool enable) {
+    assert(timer_id > 0);
+    if (enable) timers[timer_id]->DIER |= BIT(channel); else timers[timer_id]->DIER &= ~BIT(channel);
+}
+
+volatile uint32_t *timer_dma_burst(const tim_id_t timer_id, uint8_t base, uint8_t count) {
+    assert(timer_id > 0);
+    // DCR/DMAR: L4 at 0x48/0x4C, G4 at 0x3DC/0x3E0
+    uint32_t b = (uint32_t) timers[timer_id];
+    bool g4 = mcu_is_g4();
+    volatile uint32_t *dcr = (volatile uint32_t *) (b + (g4 ? 0x3DCu : 0x48u));
+    *dcr = (uint32_t) (base & 0x1Fu) | ((uint32_t) ((count - 1u) & 0x1Fu) << 8);
+    return (volatile uint32_t *) (b + (g4 ? 0x3E0u : 0x4Cu));
 }
 
 void timer_generate_update(const tim_id_t timer_id) {

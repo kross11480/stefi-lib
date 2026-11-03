@@ -9,6 +9,7 @@
 #include "internal/uart_internal.h"
 #include "internal/rcc_internal.h"
 #include "internal/mcu_id.h"
+#include "internal/gpio_internal.h"
 
 #include <stddef.h>
 
@@ -33,6 +34,7 @@
 #define NUM_USART 2u
 
 typedef struct {
+    usart_rx_event_t rx_event; void *rx_event_aux; uint16_t circ_len;
     const uint8_t *tx; uint32_t tx_len, tx_pos;
     uint8_t *rx; uint32_t rx_len, rx_pos;
     volatile bool tx_busy, rx_busy;
@@ -165,6 +167,18 @@ static void handle_irq(peripheral_uart_t id)
         s->errors |= isr & ISR_ERR;
         u->ICR = ISR_ERR;
     }
+    if ((cr1 & BIT(4)) && (isr & BIT(4))) {          // IDLE: report the DMA position
+        u->ICR = BIT(4);
+        if (s->rx_event) {
+            uint8_t ch, req;
+            dma_route(id, false, &ch, &req);
+            s->rx_event(s->rx_event_aux, (uint16_t) (s->circ_len - dma_channel_get_items(PERIPHERAL_DMA1, ch)));
+        }
+    }
+    if (isr & BIT(20)) {                              // WUF: woke up from Stop
+        u->ICR = BIT(20);
+        u->CR3 &= ~BIT(22);                           // WUFIE
+    }
     if ((cr1 & CR1_RXNEIE) && (isr & ISR_RXNE)) {
         uint8_t c = (uint8_t) u->RDR & s->data_mask;
         if (s->rx_pos < s->rx_len) s->rx[s->rx_pos++] = c;
@@ -263,3 +277,66 @@ void usart_read_dma(peripheral_uart_t id, void *buf, uint16_t len, usart_callbac
 bool usart_tx_busy(peripheral_uart_t id) { return st[id].tx_busy; }
 bool usart_rx_busy(peripheral_uart_t id) { return st[id].rx_busy; }
 uint32_t usart_errors(peripheral_uart_t id) { return st[id].errors; }
+
+
+/* -------------------------- reception to idle -------------------------- */
+static void on_circ_dma(void *aux, uint32_t flags)
+{
+    peripheral_uart_t id = (peripheral_uart_t) (uintptr_t) aux;
+    usart_state_t *s = &st[id];
+    if (!s->rx_event) return;
+    if (flags & DMA_CHANNEL_FLAG_HT) s->rx_event(s->rx_event_aux, (uint16_t) (s->circ_len / 2u));
+    if (flags & DMA_CHANNEL_FLAG_TC) s->rx_event(s->rx_event_aux, s->circ_len);
+}
+
+void usart_read_to_idle_circular(peripheral_uart_t id, uint8_t *buf, uint16_t len,
+                                 usart_rx_event_t on_data, void *aux)
+{
+    usart_state_t *s = &st[id];
+    s->rx_event = on_data; s->rx_event_aux = aux; s->circ_len = len;
+    uint8_t ch, req;
+    dma_route(id, false, &ch, &req);
+    const dma_channel_config_t cfg = {
+        .dma = PERIPHERAL_DMA1, .channel = ch, .request = req,
+        .dir = DMA_DIR_PERIPH_TO_MEM, .mem_inc = true, .circular = true,
+        .priority = DMA_PRIORITY_HIGH, .irq_tc = true, .irq_ht = true, .irq_te = true,
+    };
+    dma_channel_register_handler(PERIPHERAL_DMA1, ch, on_circ_dma, (void *) (uintptr_t) id);
+    dma_channel_configure(&cfg, &regs[id]->RDR, buf, len);
+    dma_channel_enable(PERIPHERAL_DMA1, ch);
+    regs[id]->ICR = ISR_ERR | BIT(4);
+    regs[id]->CR3 |= CR3_DMAR;
+    interrupts_enable_source(irqs[id]);
+    regs[id]->CR1 |= BIT(4);                          // IDLEIE
+}
+
+/* ------------------------------ wakeup ------------------------------ */
+void usart_wakeup_address(peripheral_uart_t id, uint8_t address, bool seven_bit)
+{
+    UART_typeDef *u = regs[id];
+    u->CR1 &= ~CR1_UE;                                // ADD/ADDM7 only while disabled
+    u->CR2 = (u->CR2 & ~((0xFFu << 24) | BIT(4))) | ((uint32_t) address << 24) | (seven_bit ? BIT(4) : 0u);
+    u->CR1 |= CR1_UE;
+}
+
+void usart_enable_wakeup(peripheral_uart_t id, usart_wakeup_t event)
+{
+    UART_typeDef *u = regs[id];
+    while (u->ISR & BIT(16));                         // BUSY
+    u->CR1 &= ~CR1_UE;                                // WUS only while disabled
+    u->CR3 = (u->CR3 & ~(0x3u << 20)) | ((uint32_t) event << 20);
+    u->CR1 |= CR1_UE;
+    while (!(u->ISR & BIT(22)));                      // REACK
+    RCC->CR |= BIT(9);                                // HSIKERON: HSI16 kept on in Stop
+    u->ICR = BIT(20);
+    u->CR3 |= BIT(22);                                // WUFIE
+    u->CR1 |= BIT(1);                                 // UESM: USART able to wake from Stop
+    if (!mcu_is_g4()) EXTI->IMR1 |= 1u << (26u + id);    // L4: USART1 26, USART2 27
+    interrupts_enable_source(irqs[id]);
+}
+
+void usart_disable_wakeup(peripheral_uart_t id)
+{
+    regs[id]->CR1 &= ~BIT(1);
+    regs[id]->CR3 &= ~BIT(22);
+}

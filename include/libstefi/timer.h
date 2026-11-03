@@ -129,6 +129,29 @@ void timer_set_repetition(const tim_id_t timer_id, uint8_t n);
 /** Address of CCRx — target for DMA (e.g. waveform from memory). */
 volatile uint32_t *timer_ccr_address(const tim_id_t timer_id, timer_channel_t channel);
 
+/* Output-compare modes (OCxM): what the pin does when CNT == CCRx. */
+typedef enum {
+    TIMER_OC_FROZEN = 0, TIMER_OC_ACTIVE = 1, TIMER_OC_INACTIVE = 2, TIMER_OC_TOGGLE = 3,
+    TIMER_OC_FORCE_INACTIVE = 4, TIMER_OC_FORCE_ACTIVE = 5, TIMER_OC_PWM1 = 6, TIMER_OC_PWM2 = 7,
+} timer_oc_mode_t;
+/** Set the OC mode (channel configured as output, preload off for the
+ *  non-PWM modes so CCRx changes take effect at once). */
+void timer_set_oc_mode(const tim_id_t timer_id, timer_channel_t channel, timer_oc_mode_t mode);
+/** Advanced timers: enable the complementary output CHxN (and MOE). */
+void timer_enable_complementary(const tim_id_t timer_id, timer_channel_t channel, bool active_high);
+/** CC interrupt for one channel on / off (DIER.CCxIE). */
+void timer_cc_interrupt(const tim_id_t timer_id, timer_channel_t channel, bool enable);
+
+/**
+ * @brief DMA burst: on each DMA request, `count` consecutive registers from
+ * register index `base` (offset / 4, e.g. ARR = 11) are written through
+ * DMAR. Returns the DMAR address to give the DMA as peripheral address.
+ */
+volatile uint32_t *timer_dma_burst(const tim_id_t timer_id, uint8_t base, uint8_t count);
+#define TIMER_REG_ARR 11u
+#define TIMER_REG_RCR 12u
+#define TIMER_REG_CCR1 13u
+
 /** UG: reload prescaler/ARR now, reset the counter. */
 void timer_generate_update(const tim_id_t timer_id);
 

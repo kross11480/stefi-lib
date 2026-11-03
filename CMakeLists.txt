@@ -16,7 +16,7 @@ set(CMAKE_C_STANDARD 11)
 # board.{h,c} and, optionally, board.cmake (sets STEFI_MCU_FAMILY when the
 # board is not an STM32L4/G4).
 set(STEFI_BOARD "nucleo_l476" CACHE STRING "Target board (subdirectory of boards/)")
-set_property(CACHE STEFI_BOARD PROPERTY STRINGS nucleo_l476 rohmi_g431 nucleo_g431kb nucleo_f767zi nucleo_l476_scope)
+set_property(CACHE STEFI_BOARD PROPERTY STRINGS nucleo_l476 nucleo_l476rg rohmi_g431 nucleo_g431kb nucleo_f767zi nucleo_l476_scope)
 if(NOT EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/boards/${STEFI_BOARD}/board.c)
     message(FATAL_ERROR "Unknown STEFI_BOARD '${STEFI_BOARD}' — no boards/${STEFI_BOARD}/board.c")
 endif()
@@ -73,6 +73,14 @@ elseif(STEFI_MCU_FAMILY STREQUAL "STM32L4G4")
             src/iwdg.c
             src/cordic.c           # G4 only
             src/fmac.c             # G4 only
+            src/crc.c
+            src/comp.c             # L4
+            src/dac.c              # L4
+            src/opamp.c            # L4
+            src/lptim.c            # L4
+            src/i2c_xfer.c
+            src/cortex.c
+            src/firewall.c         # L4
     )
 else()
     message(FATAL_ERROR "Unknown STEFI_MCU_FAMILY '${STEFI_MCU_FAMILY}' (STM32L4G4 or STM32F7)")
@@ -134,6 +142,8 @@ if(STEFI_BUILD_EXAMPLES)
         add_subdirectories(${CMAKE_CURRENT_SOURCE_DIR}/tests)
     elseif(STEFI_BOARD STREQUAL "rohmi_g431")
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/8-Rohmi-BoardTest)
+    elseif(STEFI_BOARD STREQUAL "nucleo_l476rg")
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/12-NucleoL476RG)
     elseif(STEFI_BOARD STREQUAL "nucleo_g431kb")
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/11-NucleoG431KB)
     elseif(STEFI_BOARD STREQUAL "nucleo_f767zi" OR STEFI_BOARD STREQUAL "nucleo_l476_scope")

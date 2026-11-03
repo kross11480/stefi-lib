@@ -46,12 +46,29 @@ extern void TIM8_CC_IRQHandler(void) __attribute__((weak));
 extern void USART1_IRQHandler(void) __attribute__((weak));      /* usart.c  */
 extern void USART2_IRQHandler(void) __attribute__((weak));
 
+extern void COMP_IRQHandler(void) __attribute__((weak));        /* comp.c   */
+extern void LPTIM1_IRQHandler(void) __attribute__((weak));      /* lptim.c  */
+extern void RTC_Alarm_IRQHandler(void) __attribute__((weak));   /* rtc.c    */
+extern void TAMP_STAMP_IRQHandler(void) __attribute__((weak));
+extern void SPI1_IRQHandler(void) __attribute__((weak));        /* spi.c    */
+extern void SPI2_IRQHandler(void) __attribute__((weak));
+extern void I2C1_EV_IRQHandler(void) __attribute__((weak));     /* i2c_xfer.c */
+extern void I2C1_ER_IRQHandler(void) __attribute__((weak));
+extern void I2C2_EV_IRQHandler(void) __attribute__((weak));
+extern void I2C2_ER_IRQHandler(void) __attribute__((weak));
+extern void I2C3_EV_IRQHandler(void) __attribute__((weak));
+extern void I2C3_ER_IRQHandler(void) __attribute__((weak));
+
 /* Faults: park in a loop (debugger: halt and inspect; a running watchdog
  * resets the MCU — the WWDG/IWDG examples rely on that). */
 void Fault_Handler(void)
 {
     for (;;);
 }
+
+/* cortex.c overrides these when linked (MPU example, privilege via SVC) */
+void MemManage_Handler(void) __attribute__((weak, alias("Fault_Handler")));
+void SVC_Handler(void) __attribute__((weak, alias("Fault_Handler")));
 
 extern void main();
 
@@ -81,14 +98,14 @@ void (* const paIsrFunc[16+102])(void) =
     (void *)&Reset_Handler, /*  01 (0x00000004)  initial program counter (leads to first command to execute) */
     Fault_Handler,          /*  NMI */
     Fault_Handler,          /*  HardFault */
-    Fault_Handler,          /*  MemManage */
+    MemManage_Handler,      /*  MemManage */
     Fault_Handler,          /*  BusFault */
     Fault_Handler,          /*  UsageFault */
     0,
     0,
     0,
     0,
-    0,
+    SVC_Handler,            /*  SVCall */
     0,
     0,
     0,
@@ -96,7 +113,7 @@ void (* const paIsrFunc[16+102])(void) =
     /* --- non-core vectors --- */
 	WWDG_IRQHandler,        /*   0 (0x00000040)  window watchdog interrupt */
 	0,            /*   1 (0x00000044)  PVD through EXTI line 16 interrupt */
-	0,            /*   2 (0x00000048)  RTC/TAMP/CSS on LSE through EXTI line 19 interrupt */
+	TAMP_STAMP_IRQHandler,  /*   2 (0x00000048)  RTC/TAMP/CSS on LSE through EXTI line 19 interrupt */
 	RTC_WKUP_IRQHandler,    /*   3 (0x0000004C)  RTC Wakeup timer through EXTI line 20 interrupt */
 	0,            /*   4 (0x00000050)  Flash global interrupt */
 	0,            /*   5 (0x00000054)  RCC global interrupt */
@@ -125,18 +142,33 @@ void (* const paIsrFunc[16+102])(void) =
 	TIM2_IRQHandler,            /*  28 (0x000000B0)  TIM2 global interrupt */
 	TIM3_IRQHandler,            /*  29 (0x000000B0)  TIM3 global interrupt */
 	TIM4_IRQHandler,            /*  30 (0x000000B0)  TIM4 global interrupt */
-	0, 0, 0, 0, 0, 0,           /*  31..36 I2C1/2, SPI1/2 */
+	I2C1_EV_IRQHandler,         /*  31 */
+	I2C1_ER_IRQHandler,         /*  32 */
+	I2C2_EV_IRQHandler,         /*  33 */
+	I2C2_ER_IRQHandler,         /*  34 */
+	SPI1_IRQHandler,            /*  35 */
+	SPI2_IRQHandler,            /*  36 */
 	USART1_IRQHandler,          /*  37 */
 	USART2_IRQHandler,          /*  38 */
 	0,                          /*  39 USART3 */
 	EXTI10_15_IRQHandler,       /*  40 */
-	0, 0, 0,                    /*  41..43 */
+	RTC_Alarm_IRQHandler,       /*  41 */
+	0, 0,                       /*  42..43 */
 	TIM8_IRQHandler,            /*  44 TIM8 update */
 	0,                          /*  45 */
 	TIM8_CC_IRQHandler,         /*  46 TIM8 capture compare */
 	0, 0, 0, 0, 0, 0, 0,        /*  47..53 */
 	TIM6_IRQHandler,            /*  54 (0x00000118)  TIM6 + DAC1/3 underrun global interrupts */
 	TIM7_IRQHandler,            /*  55 (0x0000011C)  TIM7 + DAC2/4 underrun global interrupts */
-	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /*  56..66 */
+	0, 0, 0, 0, 0, 0, 0, 0,     /*  56..63 */
+	COMP_IRQHandler,            /*  64 L4 COMP (G4: COMP1_2_3) */
+	LPTIM1_IRQHandler,          /*  65 L4 LPTIM1 */
+	0,                          /*  66 */
 	OTG_FS_IRQHandler,          /*  67 (0x0000014C)  L4: USB OTG FS (G4: unused here) */
+	0, 0, 0, 0,                 /*  68..71 */
+	I2C3_EV_IRQHandler,         /*  72 L4 I2C3 */
+	I2C3_ER_IRQHandler,         /*  73 */
+	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /* 74..91 */
+	I2C3_EV_IRQHandler,         /*  92 G4 I2C3 */
+	I2C3_ER_IRQHandler,         /*  93 */
 };

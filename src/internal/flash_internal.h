@@ -19,6 +19,11 @@ typedef struct {
     volatile uint32_t PCROP1ER;  // 0x28
     volatile uint32_t WRP1AR;    // 0x2C write protection area A: STRT [6:0], END [22:16]
     volatile uint32_t WRP1BR;    // 0x30 write protection area B
+    volatile uint32_t _rsvd34[4];// 0x34..0x40
+    volatile uint32_t PCROP2SR;  // 0x44 (L4 bank 2)
+    volatile uint32_t PCROP2ER;  // 0x48
+    volatile uint32_t WRP2AR;    // 0x4C (L4 bank 2, area A)
+    volatile uint32_t WRP2BR;    // 0x50 (L4 bank 2, area B)
 } flash_t;
 
 #define FLASH_REG ((flash_t*) 0x40022000)
@@ -33,7 +38,10 @@ typedef struct {
 #define FLASH_CR_PG       BIT(0)
 #define FLASH_CR_PER      BIT(1)
 #define FLASH_CR_PNB_POS  3u
-#define FLASH_CR_PNB_MSK  (0x7Fu << FLASH_CR_PNB_POS)   /* 7 bits: pages 0..63 */
+#define FLASH_CR_PNB_MSK  (0xFFu << FLASH_CR_PNB_POS)   /* G4: 7 bits used, L4: 8 bits */
+#define FLASH_CR_BKER     BIT(11)                        /* L4: page is in bank 2 */
+#define FLASH_CR_MER2     BIT(15)                        /* L4: mass erase bank 2 */
+#define FLASH_OPTR_BFB2   (1u << 20)                     /* L4: boot from bank 2 */
 #define FLASH_CR_MER1     BIT(2)
 #define FLASH_CR_STRT     BIT(16)
 #define FLASH_CR_OPTSTRT  BIT(17)

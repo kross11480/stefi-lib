@@ -9,7 +9,7 @@
 #include "internal/mcu_id.h"
 #include "libstefi/dma_channel.h"
 
-SPI_t *spi_peripherals[] = {(SPI_t*) SPI1_BASE, NULL, NULL};
+SPI_t *spi_peripherals[] = {(SPI_t*) SPI1_BASE, (SPI_t *) 0x40003800, (SPI_t *) 0x40003C00};
 
 void spi_init(const peripheral_spi_t spi_id) {
     assert(spi_id >= 0);
@@ -86,11 +86,13 @@ static struct {
     bool master;
     spi_callback_t done;
     void *aux;
+    const uint8_t *tx; uint8_t *rx;
+    uint16_t len, txpos, rxpos;
+    peripheral_spi_t id;
 } xfer;
 
 void spi_configure(const peripheral_spi_t spi_id, const spi_config_t *cfg)
 {
-    assert(spi_id == PERIPHERAL_SPI1);
     peripheral_spi_enable(spi_id);
     SPI_t *spi = spi_peripherals[spi_id];
 
@@ -181,4 +183,110 @@ bool spi_busy(const peripheral_spi_t spi_id)
 {
     (void) spi_id;
     return xfer.busy;
+}
+
+
+/**************************** polling / IT / half duplex ****************************/
+#include "libstefi/systick.h"
+#include "libstefi/interrupts.h"
+
+#define CR1_BIDIMODE BIT(15)
+#define CR1_BIDIOE   BIT(14)
+#define CR2_ERRIE    BIT(5)
+#define CR2_RXNEIE   BIT(6)
+#define CR2_TXEIE    BIT(7)
+#define SR_TXE       BIT(1)
+
+static inline volatile uint8_t *dr8(SPI_t *spi) { return (volatile uint8_t *) &spi->DR; }
+
+bool spi_transfer_buffer(const peripheral_spi_t spi_id, const void *tx, void *rx, uint16_t len,
+                         uint32_t timeout_ms)
+{
+    SPI_t *spi = spi_peripherals[spi_id];
+    const uint8_t *t = tx;
+    uint8_t *r = rx;
+    uint32_t t0 = systick_get_ms();
+    spi->CR1 |= CR1_SPE;
+    uint16_t sent = 0, got = 0;
+    while (got < len) {
+        // keep at most one byte in flight: the slave side may run late
+        if (sent < len && sent == got && (spi->SR & SR_TXE)) { *dr8(spi) = t[sent++]; }
+        if (spi->SR & SR_RXNE) { r[got++] = *dr8(spi); }
+        if (systick_get_ms() - t0 >= timeout_ms) return false;
+    }
+    while (spi->SR & SR_BSY) if (systick_get_ms() - t0 >= timeout_ms) return false;
+    return true;
+}
+
+static void spi_irq(peripheral_spi_t id)
+{
+    SPI_t *spi = spi_peripherals[id];
+    uint32_t sr = spi->SR;
+    if ((sr & SR_RXNE) && xfer.rxpos < xfer.len) {
+        xfer.rx[xfer.rxpos++] = *dr8(spi);
+        if (xfer.txpos < xfer.len) spi->CR2 |= CR2_TXEIE;   // next byte after each reception
+    }
+    if ((spi->CR2 & CR2_TXEIE) && (sr & SR_TXE)) {
+        if (xfer.txpos < xfer.len && xfer.txpos == xfer.rxpos) *dr8(spi) = xfer.tx[xfer.txpos++];
+        spi->CR2 &= ~CR2_TXEIE;
+    }
+    bool error = (sr & SR_ERR) != 0;
+    if (xfer.rxpos >= xfer.len || error) {
+        spi->CR2 &= ~(CR2_RXNEIE | CR2_TXEIE | CR2_ERRIE);
+        if (xfer.master) while (spi->SR & SR_BSY);
+        xfer.busy = false;
+        if (xfer.done) xfer.done(xfer.aux, error);
+    }
+}
+
+void SPI1_IRQHandler(void) { spi_irq(PERIPHERAL_SPI1); }
+void SPI2_IRQHandler(void) { spi_irq(PERIPHERAL_SPI2); }
+
+void spi_transfer_it(const peripheral_spi_t spi_id, const void *tx, void *rx, uint16_t len,
+                     spi_callback_t done, void *aux)
+{
+    SPI_t *spi = spi_peripherals[spi_id];
+    xfer.tx = tx; xfer.rx = rx; xfer.len = len; xfer.txpos = xfer.rxpos = 0;
+    xfer.done = done; xfer.aux = aux; xfer.busy = true; xfer.id = spi_id;
+    interrupts_enable_source((nvic_source_t) (spi_id == PERIPHERAL_SPI1 ? 35 : 36));
+    spi->CR1 |= CR1_SPE;
+    spi->CR2 |= CR2_RXNEIE | CR2_ERRIE | CR2_TXEIE;
+}
+
+void spi_configure_half_duplex(const peripheral_spi_t spi_id, const spi_config_t *cfg)
+{
+    spi_configure(spi_id, cfg);
+    SPI_t *spi = spi_peripherals[spi_id];
+    spi->CR1 |= CR1_BIDIMODE | CR1_BIDIOE;
+}
+
+void spi_half_duplex_direction(const peripheral_spi_t spi_id, bool transmit)
+{
+    SPI_t *spi = spi_peripherals[spi_id];
+    if (transmit) spi->CR1 |= CR1_BIDIOE; else spi->CR1 &= ~CR1_BIDIOE;
+}
+
+void spi_enable(const peripheral_spi_t spi_id)  { spi_peripherals[spi_id]->CR1 |= CR1_SPE; }
+void spi_disable(const peripheral_spi_t spi_id) { spi_peripherals[spi_id]->CR1 &= ~CR1_SPE; }
+
+void spi_write_byte(const peripheral_spi_t spi_id, uint8_t val)
+{
+    SPI_t *spi = spi_peripherals[spi_id];
+    while (!(spi->SR & SR_TXE));
+    *dr8(spi) = val;
+    while (spi->SR & SR_BSY);
+}
+
+uint8_t spi_read_byte(const peripheral_spi_t spi_id, bool master)
+{
+    SPI_t *spi = spi_peripherals[spi_id];
+    if (master) {
+        spi->CR1 |= CR1_SPE;                  // clock starts now ...
+        __asm volatile ("dsb\n dsb\n dsb\n dsb" ::: "memory");
+        spi->CR1 &= ~CR1_SPE;                 // ... and stops after this byte
+    }
+    while (!(spi->SR & SR_RXNE));
+    uint8_t v = *dr8(spi);
+    while (spi->SR & SR_BSY);
+    return v;
 }
