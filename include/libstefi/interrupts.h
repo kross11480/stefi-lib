@@ -4,6 +4,8 @@
 /* Interrupts Hardware Abstraction layer */
 /**********************************************************************/
 
+#include <stdint.h>
+
 //Datatypes
 typedef void (*callbackfn_t)(void *aux_data);
 
@@ -32,6 +34,18 @@ enum _nvic_interrupt_sources {
     INTERRUPT_SOURCE_TIM15 = 24,
     INTERRUPT_SOURCE_TIM1_TIM16 = 25,
     INTERRUPT_SOURCE_TIM17 = 26,
+#if defined(STEFI_MCU_STM32F7)
+    /* STM32F76x/77x only (RM0410 vector table). The EXTI and TIM2/3/4/6/7/8
+     * lines above have the same numbers on the F7. On the F7, DMA1_CH1..7
+     * above are DMA1 *streams* 0..6. */
+    INTERRUPT_SOURCE_TIM1_UP = 25,           /* TIM1_UP_TIM10 */
+    INTERRUPT_SOURCE_USART3 = 39,
+    INTERRUPT_SOURCE_DMA1_STREAM0 = 11,      /* streams 0..6 contiguous */
+    INTERRUPT_SOURCE_DMA1_STREAM7 = 47,
+    INTERRUPT_SOURCE_DMA2_STREAM0 = 56,      /* streams 0..4 contiguous */
+    INTERRUPT_SOURCE_DMA2_STREAM5 = 68,      /* streams 5..7 contiguous */
+    INTERRUPT_SOURCE_OTG_FS = 67,
+#endif
 };
 
 typedef enum _nvic_interrupt_sources nvic_source_t;
@@ -67,6 +81,14 @@ void interrupts_enable_source(nvic_source_t source);
  *
  */
 void interrupts_disable_source(nvic_source_t source);
+
+/**
+ * @brief Set the NVIC priority of #source (0 = highest .. 15 = lowest).
+ *
+ * STM32 implements 4 priority bits; all sources reset to 0. A lower number
+ * preempts a higher one.
+ */
+void interrupts_set_priority(nvic_source_t source, uint8_t priority);
 
 /**
  * @brief Register a callback for the given interrupt source

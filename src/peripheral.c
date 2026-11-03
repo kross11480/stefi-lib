@@ -15,6 +15,8 @@ static const peripheral_dev_t peripheral_gpio_dev[PERIPHERAL_GPIO_COUNT] = {
     [PERIPHERAL_GPIOD] = {&RCC->AHB2ENR, 3},
     [PERIPHERAL_GPIOE] = {&RCC->AHB2ENR, 4},
     [PERIPHERAL_GPIOF] = {&RCC->AHB2ENR, 5},
+    [PERIPHERAL_GPIOG] = {&RCC->AHB2ENR, 6},
+    [PERIPHERAL_GPIOH] = {&RCC->AHB2ENR, 7},
 };
 
 static const peripheral_dev_t peripheral_tim_dev[PERIPHERAL_TIM_COUNT] = {
@@ -34,6 +36,7 @@ static const peripheral_dev_t peripheral_tim_dev[PERIPHERAL_TIM_COUNT] = {
 static const peripheral_dev_t peripheral_uart_dev[PERIPHERAL_UART_COUNT] = {
     [PERIPHERAL_UART1] = {&RCC->APB2ENR, 14},
     [PERIPHERAL_UART2] = {&RCC->APB1ENR1, 17},
+    [PERIPHERAL_UART3] = {&RCC->APB1ENR1, 18},
 };
 
 static const peripheral_dev_t peripheral_i2c_dev[PERIPHERAL_I2C_COUNT] = {

@@ -1,5 +1,5 @@
 site_name: stefi-lib
-site_description: Bare-metal C firmware framework for STM32G4/L4 — no HAL, no CMSIS
+site_description: Bare-metal C firmware framework for STM32G4/L4/F7 — no HAL, no CMSIS
 site_url: https://kross11480.github.io/stefi-lib/
 repo_url: https://github.com/kross11480/stefi-lib
 repo_name: kross11480/stefi-lib
@@ -11,6 +11,7 @@ nav:
   - Home: index.md
   - Getting started: GETTING_STARTED.md
   - Examples: examples.md
+  - USB oscilloscope: usb-oscilloscope.md
 
 theme:
   name: material

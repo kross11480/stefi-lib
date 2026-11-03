@@ -51,4 +51,11 @@ them with the normal presets; the ELF ends up in
     Whole-board smoke test for the STefi adapter board
     (LEDs, buttons, OLED, FRAM). Builds with the default board.
 
+- **10 — USB Oscilloscope**
+
+    The [USB oscilloscope](usb-oscilloscope.md) as a stefi-lib application:
+    10 MSPS parallel-ADC capture by DMA, comparator trigger, DAC-set reference
+    voltage and a USB CDC link to the PC software.
+    Builds only with `-DSTEFI_BOARD=nucleo_f767zi`.
+
 </div>

@@ -58,6 +58,14 @@ void interrupts_enable_source(nvic_source_t irq_num)
     NVIC_BASE->ISER[irq_num/32] |= (1 << irq_num%32);
 }
 
+void interrupts_set_priority(nvic_source_t irq_num, uint8_t priority)
+{
+    assert(irq_num >= 0);
+    // NVIC_IPR: one byte per IRQ, only the top 4 bits are implemented.
+    volatile uint8_t *ipr = (volatile uint8_t *) 0xE000E400u;
+    ipr[irq_num] = (uint8_t) ((priority & 0xFu) << 4);
+}
+
 void interrupts_disable_source(nvic_source_t irq_num)
 {
     NVIC_BASE->ICER[irq_num / 32] |= (1U << (irq_num % 32));

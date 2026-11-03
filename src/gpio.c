@@ -63,7 +63,11 @@ void gpio_set_output_speed(const gpio_id_t portpin, ospeed_t ospeed) {
 void gpio_set_analog_switch(const gpio_id_t portpin) {
     uint16_t pin = portpin & 0xFF;
     GPIO_typeDef *gpio = gpio_get_base_address(portpin);
+#if defined(STEFI_MCU_STM32F7)
+    (void) gpio; (void) pin;   // F7: no analog switch register (ASCR is L4-only)
+#else
     gpio->ASCR |= BIT(pin);
+#endif
 }
 
 uint16_t gpio_get_port_from_portpin(const gpio_id_t portpin)
@@ -85,12 +89,15 @@ void gpio_set_alternate_function(const gpio_id_t portpin, afr_t af)
     uint16_t pin = portpin & 0xFF;
     GPIO_typeDef *gpio = gpio_get_base_address(portpin);
 
+    // clear the 4-bit field first, so re-assigning a pin's AF works
     if (pin < 8)
     {
+        gpio->AFR[0] &= ~(0xFu << (4*pin));
         gpio->AFR[0] |= (af << (4*pin));
     }
     else
     {
+        gpio->AFR[1] &= ~(0xFu << (4*(pin-8)));
         gpio->AFR[1] |= (af << (4*(pin-8)));
     }
 }
@@ -114,12 +121,53 @@ void gpio_enable_interrupt(const gpio_id_t portpin, const edge_t evt) {
         case RISING_EDGE:
             EXTI->RTSR1 |= BIT(pin);
             break;
+        case BOTH_EDGES:
+            EXTI->RTSR1 |= BIT(pin);
+            EXTI->FTSR1 |= BIT(pin);
+            break;
     }
     interrupts_enable_source(extipin_to_irq[pin]);
 }
 
 void gpio_clear_interruptflag(uint8_t pin) {
-    EXTI->PR1 |= BIT(pin);  // Clear pending bit
+    // PR is write-1-to-clear: a read-modify-write (|=) would also clear every
+    // other pending line, so write the single bit.
+    EXTI->PR1 = BIT(pin);
+}
+
+void gpio_set_interrupt_edge(const gpio_id_t portpin, const edge_t edge) {
+    uint16_t pin = portpin & 0xFF;
+    switch (edge) {
+        case FALLING_EDGE:
+            EXTI->RTSR1 &= ~BIT(pin);
+            EXTI->FTSR1 |= BIT(pin);
+            break;
+        case RISING_EDGE:
+            EXTI->FTSR1 &= ~BIT(pin);
+            EXTI->RTSR1 |= BIT(pin);
+            break;
+        case BOTH_EDGES:
+            EXTI->RTSR1 |= BIT(pin);
+            EXTI->FTSR1 |= BIT(pin);
+            break;
+    }
+}
+
+nvic_source_t gpio_get_interrupt_source(const gpio_id_t portpin) {
+    return extipin_to_irq[portpin & 0xF];
+}
+
+void gpio_interrupt_mask(const gpio_id_t portpin) {
+    uint16_t pin = portpin & 0xFF;
+    EXTI->IMR1 &= ~BIT(pin);
+}
+
+void gpio_interrupt_unmask(const gpio_id_t portpin) {
+    uint16_t pin = portpin & 0xFF;
+    // An edge seen while masked still latches PR: drop it, so unmasking
+    // means "react to the next edge", not "to one that already happened".
+    gpio_clear_interruptflag(pin);
+    EXTI->IMR1 |= BIT(pin);
 }
 
 void gpio_interrupt_register_handler(const gpio_id_t portpin, callbackfn_t fn) {
@@ -136,7 +184,9 @@ void gpio_interrupt_register_handler_context(const gpio_id_t portpin, callbackfn
 
 static void exti_dispatch(uint8_t exti_num)
 {
-    exti_handlers[exti_num].callback(exti_handlers[exti_num].aux_data);
+    if (exti_handlers[exti_num].callback) {
+        exti_handlers[exti_num].callback(exti_handlers[exti_num].aux_data);
+    }
 }
 
 void EXTI0_IRQHandler(void)

@@ -7,9 +7,11 @@ enum peripheral_gpio {
     PERIPHERAL_GPIOA,
     PERIPHERAL_GPIOB,
     PERIPHERAL_GPIOC,
-    PERIPHERAL_GPIOD, //D/E unused so far; they keep the enum aligned with
-    PERIPHERAL_GPIOE, //the port index from gpio_get_port_from_portpin()
+    PERIPHERAL_GPIOD, //the enum stays aligned with the port index from
+    PERIPHERAL_GPIOE, //gpio_get_port_from_portpin()
     PERIPHERAL_GPIOF,
+    PERIPHERAL_GPIOG, //G/H: F7 (and L476 port G); not on the G431
+    PERIPHERAL_GPIOH,
     PERIPHERAL_GPIO_COUNT
 };
 
@@ -31,6 +33,7 @@ enum peripheral_tim {
 enum peripheral_uart {
     PERIPHERAL_UART1,
     PERIPHERAL_UART2,
+    PERIPHERAL_UART3, //F7: ST-Link virtual COM port on the NUCLEO-144
     PERIPHERAL_UART_COUNT
 };
 
@@ -89,3 +92,5 @@ void peripheral_adc_enable(peripheral_adc_t id);
 void peripheral_dma_enable(peripheral_dma_t id);
 void peripheral_exti_enable();
 void peripheral_rng_enable();
+/* USB OTG full-speed core clock (F7 only). */
+void peripheral_usb_otg_fs_enable(void);

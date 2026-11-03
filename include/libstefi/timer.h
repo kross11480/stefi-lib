@@ -89,6 +89,24 @@ void timer_set_mode_opm(const tim_id_t timer_id);
  */
 void timer_wait_for_update_flag(const tim_id_t timer);
 
+/*-----------------------------------*/
+/* DMA requests                      */
+/*-----------------------------------*/
+typedef enum {
+    TIMER_DMA_UPDATE = 8,   /* UDE: one DMA request per update event */
+    TIMER_DMA_CC1 = 9,
+    TIMER_DMA_CC2 = 10,
+    TIMER_DMA_CC3 = 11,
+    TIMER_DMA_CC4 = 12,
+} timer_dma_request_t;
+
+/**
+ * @brief Let the timer raise a DMA request on the given event (TIMx_DIER).
+ * Which DMA channel/stream serves it is fixed by the MCU's request table.
+ */
+void timer_enable_dma_request(const tim_id_t timer_id, timer_dma_request_t request);
+void timer_disable_dma_request(const tim_id_t timer_id, timer_dma_request_t request);
+
 /*--------------------*/
 /* Interrupts */
 /*--------------------*/

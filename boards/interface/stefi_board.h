@@ -23,6 +23,7 @@
 #include "libstefi/timer.h"
 #include "libstefi/peripheral.h"
 
+#include <stdbool.h>
 #include <stdint.h>
 
 /* Device IDs are indices into the config tables below. The concrete board's
@@ -109,6 +110,42 @@ typedef struct {
     uint32_t adc_channel;
 } freepin_config_t;
 
+/* Parallel-output ADC (e.g. LTC1420) sampled by DMA from a GPIO input data
+ * register. The data pins must be contiguous on one port, D0 at the lowest
+ * pin; the sample clock is a timer PWM output whose update event also
+ * raises the DMA request that captures one sample (stream DMA, F7). */
+typedef struct {
+    gpio_id_t data_lsb_pin;      /* D0 */
+    uint8_t data_bits;           /* D0..D(n-1) on data_lsb_pin.. */
+    gpio_id_t overflow_pin;      /* out-of-range flag, same port as data */
+    bool signed_output;          /* ADC delivers 2's complement */
+    gpio_id_t clock_pin;         /* ADC CLK = timer channel output */
+    afr_t clock_af;
+    tim_id_t clock_timer;
+    uint32_t clock_channel;
+    uint32_t timer_clk_hz;       /* kernel clock of clock_timer */
+    uint32_t min_sample_rate_hz;
+    uint32_t max_sample_rate_hz;
+    peripheral_dma_t dma;        /* DMA controller/stream/channel serving */
+    uint8_t dma_stream;          /* clock_timer's UPDATE request */
+    uint8_t dma_channel;
+} parallel_adc_config_t;
+
+/* Parallel-input 12-bit DAC with latch (e.g. LTC1450): data D0..D11,
+ * active-low /CLR and /LD (transparent latch while /LD is low). */
+typedef struct {
+    gpio_id_t data[12];          /* D0..D11 */
+    gpio_id_t clear_n;
+    gpio_id_t load_n;
+    otype_t otype;               /* OPEN_DRAIN with external pull-ups for 5 V parts */
+} ref_dac_config_t;
+
+/* Digital trigger input (e.g. comparator output) on an EXTI-capable pin. */
+typedef struct {
+    gpio_id_t portpin;
+    pupdr_t pull;
+} edge_trigger_config_t;
+
 /* Config tables implemented by the concrete board (sizes are the board's
  * NUM_* counts; boards without a device omit its table). */
 extern led_config_t leds[];
@@ -118,5 +155,8 @@ extern motor_config_t motors[NUM_MOTORS];
 extern line_sensor_config_t line_sensors[NUM_LINE_SENSORS];
 extern lsm6dso_config_t imu;
 extern freepin_config_t freepin[];
+extern parallel_adc_config_t parallel_adc;
+extern ref_dac_config_t ref_dac;
+extern edge_trigger_config_t edge_trigger;
 
 void board_init();

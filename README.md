@@ -1,7 +1,7 @@
 # stefi-lib
 
-A bare-metal C firmware framework for STM32G4/L4 (Cortex-M4), used in the
-TH Nürnberg Embedded Lab.
+A bare-metal C firmware framework for STM32G4/L4 (Cortex-M4) and STM32F7
+(Cortex-M7), used in the TH Nürnberg Embedded Lab.
 
 Supported boards, prerequisites, and build/flash instructions:
 [doc/GETTING_STARTED.md](doc/GETTING_STARTED.md).
@@ -40,6 +40,12 @@ void main(void) {
     }
 }
 ```
+## Applications
+
+- [USB oscilloscope](doc/usb-oscilloscope.md) — the
+  [usb-oscilloscope](https://github.com/kross11480/usb-oscilloscope) firmware
+  rebuilt on stefi-lib (NUCLEO-F767ZI): `examples/10-UsbOscilloscope`.
+
 ## Using stefi-lib in your own project
 
 The easiest way to start is the

@@ -37,14 +37,27 @@ typedef struct
 
 #define NUM_TIMERINTERRUPTS 19
 
+/*
+ * Register layout above is the G4/L4 one. The F7 timers share it up to BDTR
+ * (0x44), which is everything timer.c touches; the F7-only fields beyond it
+ * (CCMR3/CCR5/CCR6 at different offsets) must not be used on the F7.
+ *
+ * On the F7, TIMER15/16/17 alias TIM9/10/11: same addresses, same RCC enable
+ * bits and same NVIC lines (TIM1_BRK_TIM9, TIM1_UP_TIM10, TIM1_TRG_COM_TIM11).
+ */
+#if defined(STEFI_MCU_STM32F7)
+#define TIM1_BASE ((TIM_t *) 0x40010000)
+#define TIM8_BASE ((TIM_t *) 0x40010400)
+#else
 #define TIM1_BASE ((TIM_t *) 0x40012C00)
+#define TIM8_BASE ((TIM_t *) 0x40013400)
+#endif
 #define TIM2_BASE ((TIM_t *) 0x40000000)
 #define TIM3_BASE ((TIM_t *) 0x40000400)
 #define TIM4_BASE ((TIM_t *) 0x40000800)
 #define TIM5_BASE ((TIM_t *) 0x40000C00)
 #define TIM6_BASE ((TIM_t *) 0x40001000)
 #define TIM7_BASE ((TIM_t *) 0x40001400)
-#define TIM8_BASE ((TIM_t *) 0x40013400)
 
 #define TIM15_BASE ((TIM_t *) 0x40014000)
 #define TIM16_BASE ((TIM_t *) 0x40014400)

@@ -220,6 +220,16 @@ void timer_set_ic_edge(const tim_id_t timer_id, timer_channel_t channel, timer_e
     }
 }
 
+void timer_enable_dma_request(const tim_id_t timer_id, timer_dma_request_t request) {
+    assert(timer_id > 0);
+    timers[timer_id]->DIER |= BIT(request);
+}
+
+void timer_disable_dma_request(const tim_id_t timer_id, timer_dma_request_t request) {
+    assert(timer_id > 0);
+    timers[timer_id]->DIER &= ~BIT(request);
+}
+
 /*******Interrupts*****************/
 void timer_update_interrupt_register_handler(const tim_id_t timer_id, callbackfn_t fn) {
     timer_handlers[timer_id].callback[TIMER_UPDATE_IRQ] = fn;
@@ -337,3 +347,10 @@ void TIM16_IRQHandler(void) {
     handle_timer_irq(TIMER16);
 }
 void TIM17_IRQHandler(void) {handle_timer_irq(TIMER17);}
+#if defined(STEFI_MCU_STM32F7)
+/* F7 vector 25 (TIM1_UP_TIM10): TIM1's update interrupt; TIMER16 aliases TIM10. */
+void TIM1_UP_TIM10_IRQHandler(void) {
+    handle_timer_irq(TIMER1);
+    handle_timer_irq(TIMER16);
+}
+#endif

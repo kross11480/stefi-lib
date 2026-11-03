@@ -1,7 +1,7 @@
 # stefi-lib
 
-**A bare-metal C firmware framework for STM32G4/L4 (Cortex-M4) — no HAL, no
-CMSIS.** Every register access is hand-written and readable; the whole stack
+**A bare-metal C firmware framework for STM32G4/L4 (Cortex-M4) and STM32F7
+(Cortex-M7) — no HAL, no CMSIS.** Every register access is hand-written and readable; the whole stack
 from GPIO bit to OLED driver fits in your head. Built for and used in the
 TH Nürnberg Embedded Lab.
 

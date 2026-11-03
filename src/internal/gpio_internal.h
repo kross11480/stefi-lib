@@ -12,19 +12,28 @@ typedef struct {
     volatile uint32_t BSRR;     // 0x18: GPIO bit set/reset register
     volatile uint32_t LCKR;     // 0x1C: GPIO lock register
     volatile uint32_t AFR[2];   // 0x20: GPIO alternate function registers
-    volatile uint32_t BRR;         /*!< GPIO Bit Reset register,               Address offset: 0x28      */
-    volatile uint32_t ASCR;        /*!< GPIO analog switch control register,   Address offset: 0x2C     */
+    volatile uint32_t BRR;         /*!< GPIO Bit Reset register (L4/G4 only),  Address offset: 0x28      */
+    volatile uint32_t ASCR;        /*!< GPIO analog switch control (L4 only),  Address offset: 0x2C     */
 
 
 } GPIO_typeDef;
 
-#define GPIO_BASE (0x48000000)
+/*
+ * Bus map. The GPIO/EXTI/SYSCFG register *layouts* used here are the same on
+ * the L4/G4 and the F7 (EXTI IMR..PR == IMR1..PR1, SYSCFG EXTICR at 0x08);
+ * only the base addresses differ.
+ */
+#if defined(STEFI_MCU_STM32F7)
+#define GPIO_BASE (0x40020000)     /* AHB1 on the F7 */
+#else
+#define GPIO_BASE (0x48000000)     /* AHB2 on L4/G4 */
+#endif
 #define GPIO_PORTOFFSET (0x400)
 
 //For compatibility, low level test code
-#define GPIOA ((GPIO_typeDef *) 0x48000000)
-#define GPIOB ((GPIO_typeDef *) 0x48000400)
-#define GPIOC ((GPIO_typeDef *) 0x48000800)
+#define GPIOA ((GPIO_typeDef *) (GPIO_BASE + 0 * GPIO_PORTOFFSET))
+#define GPIOB ((GPIO_typeDef *) (GPIO_BASE + 1 * GPIO_PORTOFFSET))
+#define GPIOC ((GPIO_typeDef *) (GPIO_BASE + 2 * GPIO_PORTOFFSET))
 
 typedef struct
 {
@@ -44,7 +53,11 @@ typedef struct
     volatile uint32_t PR2;         /*!< EXTI Pending register 2,                    Address offset: 0x34 */
 } EXTI_typeDef;
 
+#if defined(STEFI_MCU_STM32F7)
+#define EXTI ((EXTI_typeDef *) 0x40013C00)   /* F7: IMR/EMR/RTSR/FTSR/SWIER/PR */
+#else
 #define EXTI ((EXTI_typeDef *) 0x40010400)
+#endif
 #define NUM_EXTIINTERRUPTS 16
 
 typedef struct
@@ -58,4 +71,8 @@ typedef struct
     volatile uint32_t SKR;         /*!< SYSCFG CCMSRAM Key Register,                         Address offset: 0x24      */
 } SYSCFG_typeDef;
 
+#if defined(STEFI_MCU_STM32F7)
+#define SYSCFG ((SYSCFG_typeDef *) 0x40013800)
+#else
 #define SYSCFG ((SYSCFG_typeDef *) 0x40010000)
+#endif
