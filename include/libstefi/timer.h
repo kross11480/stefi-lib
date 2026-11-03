@@ -90,6 +90,49 @@ void timer_set_mode_opm(const tim_id_t timer_id);
 void timer_wait_for_update_flag(const tim_id_t timer);
 
 /*-----------------------------------*/
+/* Output polarity, synchronisation  */
+/*-----------------------------------*/
+/* timer_cc_enable() makes outputs active-low (the STefi LEDs sink); ST's
+ * examples and most loads want active-high: call this after it. */
+void timer_set_oc_polarity(const tim_id_t timer_id, timer_channel_t channel, bool active_high);
+
+typedef enum {
+    TIMER_TRGO_RESET = 0, TIMER_TRGO_ENABLE = 1, TIMER_TRGO_UPDATE = 2, TIMER_TRGO_OC1 = 3,
+    TIMER_TRGO_OC1REF = 4, TIMER_TRGO_OC2REF = 5, TIMER_TRGO_OC3REF = 6, TIMER_TRGO_OC4REF = 7,
+} timer_trgo_t;
+
+typedef enum {
+    TIMER_SLAVE_DISABLED = 0, TIMER_SLAVE_RESET = 4, TIMER_SLAVE_GATED = 5,
+    TIMER_SLAVE_TRIGGER = 6, TIMER_SLAVE_EXTERNAL_CLOCK = 7,
+} timer_slave_mode_t;
+
+/* Trigger inputs (SMCR.TS). Which timer an ITRx is, is fixed per slave by
+ * the MCU (RM0440 table 'TIMx internal trigger connection'; e.g. on the G4
+ * TIM3: ITR1 = TIM2, TIM4: ITR2 = TIM3). */
+typedef enum {
+    TIMER_TS_ITR0 = 0, TIMER_TS_ITR1 = 1, TIMER_TS_ITR2 = 2, TIMER_TS_ITR3 = 3,
+    TIMER_TS_TI1F_ED = 4, TIMER_TS_TI1FP1 = 5, TIMER_TS_TI2FP2 = 6, TIMER_TS_ETRF = 7,
+} timer_trigger_t;
+
+/** Master: what drives TRGO; with sync, MSM delays this timer's own
+ *  trigger so it starts in step with its slaves. */
+void timer_set_master_mode(const tim_id_t timer_id, timer_trgo_t trgo, bool sync_slaves);
+void timer_set_slave_mode(const tim_id_t timer_id, timer_slave_mode_t mode, timer_trigger_t trigger);
+
+/** Input capture source: direct = TIx -> ICx, indirect = the neighbour
+ *  (TI2 -> IC1, TI1 -> IC2...) — two channels on one pin = PWM input. */
+void timer_set_ic_source(const tim_id_t timer_id, timer_channel_t channel, bool indirect);
+
+/** Advanced timers (TIM1/8/15-17): update event every n+1 periods. */
+void timer_set_repetition(const tim_id_t timer_id, uint8_t n);
+
+/** Address of CCRx — target for DMA (e.g. waveform from memory). */
+volatile uint32_t *timer_ccr_address(const tim_id_t timer_id, timer_channel_t channel);
+
+/** UG: reload prescaler/ARR now, reset the counter. */
+void timer_generate_update(const tim_id_t timer_id);
+
+/*-----------------------------------*/
 /* DMA requests                      */
 /*-----------------------------------*/
 typedef enum {

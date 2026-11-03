@@ -77,3 +77,6 @@ void system_init(void)
     while (!(RCC_F7->CR & BIT(RCC_CR_PLLSAIRDY)));
     RCC_F7->DCKCFGR2 |= BIT(RCC_DCKCFGR2_CK48MSEL);
 }
+
+bool system_init_g4(uint32_t hz) { (void) hz; return false; }
+uint32_t system_get_core_clock(void) { return sys_clk; }

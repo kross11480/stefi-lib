@@ -37,6 +37,22 @@ extern void DMA1_Channel7_IRQHandler(void);
  * Unresolved, the slot stays 0 — the IRQ is never enabled then. */
 extern void OTG_FS_IRQHandler(void) __attribute__((weak));
 
+/* Optional drivers: weak references, so their code is only linked into apps
+ * that use them (unresolved = 0, those IRQs are then never enabled). */
+extern void WWDG_IRQHandler(void) __attribute__((weak));        /* wwdg.c   */
+extern void RTC_WKUP_IRQHandler(void) __attribute__((weak));    /* rtc.c    */
+extern void TIM1_CC_IRQHandler(void) __attribute__((weak));     /* timer.c  */
+extern void TIM8_CC_IRQHandler(void) __attribute__((weak));
+extern void USART1_IRQHandler(void) __attribute__((weak));      /* usart.c  */
+extern void USART2_IRQHandler(void) __attribute__((weak));
+
+/* Faults: park in a loop (debugger: halt and inspect; a running watchdog
+ * resets the MCU — the WWDG/IWDG examples rely on that). */
+void Fault_Handler(void)
+{
+    for (;;);
+}
+
 extern void main();
 
 void Reset_Handler(void)
@@ -63,11 +79,11 @@ void (* const paIsrFunc[16+102])(void) =
 {/* --- core vectors --- */
     (void *)&_estack,       /*  00 (0x00000000)  initial stack pointer */
     (void *)&Reset_Handler, /*  01 (0x00000004)  initial program counter (leads to first command to execute) */
-    0,
-    0,
-    0,
-    0,
-    0,
+    Fault_Handler,          /*  NMI */
+    Fault_Handler,          /*  HardFault */
+    Fault_Handler,          /*  MemManage */
+    Fault_Handler,          /*  BusFault */
+    Fault_Handler,          /*  UsageFault */
     0,
     0,
     0,
@@ -78,10 +94,10 @@ void (* const paIsrFunc[16+102])(void) =
     0,
     SysTick_IRQHandler,
     /* --- non-core vectors --- */
-	0,            /*   0 (0x00000040)  window watchdog interrupt */
+	WWDG_IRQHandler,        /*   0 (0x00000040)  window watchdog interrupt */
 	0,            /*   1 (0x00000044)  PVD through EXTI line 16 interrupt */
 	0,            /*   2 (0x00000048)  RTC/TAMP/CSS on LSE through EXTI line 19 interrupt */
-	0,            /*   3 (0x0000004C)  RTC Wakeup timer through EXTI line 20 interrupt */
+	RTC_WKUP_IRQHandler,    /*   3 (0x0000004C)  RTC Wakeup timer through EXTI line 20 interrupt */
 	0,            /*   4 (0x00000050)  Flash global interrupt */
 	0,            /*   5 (0x00000054)  RCC global interrupt */
 	EXTI0_IRQHandler,       /*   6 (0x00000058)  EXTI Line 0 interrupt */
@@ -105,15 +121,20 @@ void (* const paIsrFunc[16+102])(void) =
 	TIM15_IRQHandler,            /*  24 (0x000000A0)  TIM1 break + TIM15 global interrupts */
 	TIM16_IRQHandler,            /*  25 (0x000000A4)  TIM1 update + TIM16 global interrupts */
 	TIM17_IRQHandler,            /*  26 (0x000000A8)  TIM1 trigger, commutation, direction change, index  + TIM17 interrupts */
-	0,            /*  27 (0x000000AC)  TIM1 capture compare interrupt */
+	TIM1_CC_IRQHandler,     /*  27 (0x000000AC)  TIM1 capture compare interrupt */
 	TIM2_IRQHandler,            /*  28 (0x000000B0)  TIM2 global interrupt */
 	TIM3_IRQHandler,            /*  29 (0x000000B0)  TIM3 global interrupt */
 	TIM4_IRQHandler,            /*  30 (0x000000B0)  TIM4 global interrupt */
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
-	EXTI10_15_IRQHandler,
-	0, 0, 0,
-	TIM8_IRQHandler,
-	0, 0, 0, 0, 0, 0, 0, 0, 0,
+	0, 0, 0, 0, 0, 0,           /*  31..36 I2C1/2, SPI1/2 */
+	USART1_IRQHandler,          /*  37 */
+	USART2_IRQHandler,          /*  38 */
+	0,                          /*  39 USART3 */
+	EXTI10_15_IRQHandler,       /*  40 */
+	0, 0, 0,                    /*  41..43 */
+	TIM8_IRQHandler,            /*  44 TIM8 update */
+	0,                          /*  45 */
+	TIM8_CC_IRQHandler,         /*  46 TIM8 capture compare */
+	0, 0, 0, 0, 0, 0, 0,        /*  47..53 */
 	TIM6_IRQHandler,            /*  54 (0x00000118)  TIM6 + DAC1/3 underrun global interrupts */
 	TIM7_IRQHandler,            /*  55 (0x0000011C)  TIM7 + DAC2/4 underrun global interrupts */
 	0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,   /*  56..66 */

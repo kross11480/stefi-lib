@@ -25,3 +25,8 @@ $CC -Wall -O1 -I"$ROOT/tests/host/stubs" -I"$ROOT/examples/10-UsbOscilloscope" \
     "$ROOT/components/event_fsm/event_fsm.c" "$ROOT/components/cmd_line/cmd_line.c" \
     "$ROOT/src/ringbuffer.c" -o "$OUT/test_scope_protocol"
 "$OUT/test_scope_protocol"
+
+# FMAC software model (G431 FMAC example reference) vs. a float IIR
+$CC -Wall -O1 -DSTEFI_MCU_STM32L4G4 -I"$ROOT/include" -I"$ROOT/src" \
+    "$ROOT/tests/host/test_fmac_model.c" "$ROOT/src/fmac.c" -lm -o "$OUT/test_fmac_model"
+"$OUT/test_fmac_model"
