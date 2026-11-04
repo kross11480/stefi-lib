@@ -7,6 +7,7 @@
 #include "internal/pwr_internal.h"
 #include "internal/mcu_id.h"
 #include "internal/gpio_internal.h"
+#include "internal/timer_internal.h"
 
 //L4: APBx Clock same as Sys Clock
 enum {
@@ -163,36 +164,33 @@ void system_mco(mco_source_t src, uint8_t div_log2)
               | ((uint32_t) src << 24) | ((uint32_t) (div_log2 & 7u) << 28);
 }
 
-#define TIM16_REG(off) (*(volatile uint32_t *) (0x40014400u + (off)))
 
 uint32_t system_measure_lsi_hz(void)
 {
-    #define RCC_CSR_LSI (*(volatile uint32_t *) 0x40021094u)
-    RCC_CSR_LSI |= BIT(0);
-    while (!(RCC_CSR_LSI & BIT(1)));
+    RCC->CSR |= BIT(0);                                 // LSION
+    while (!(RCC->CSR & BIT(1)));
     RCC->APB2ENR |= BIT(17);                            // TIM16EN
     (void) RCC->APB2ENR;
-    TIM16_REG(0x00) = 0;                                // CR1: stopped
-    TIM16_REG(0x50) = 0x1u;                             // OR1 TI1_RMP = LSI (L4)
-    TIM16_REG(0x28) = 0;                                // PSC
-    TIM16_REG(0x2C) = 0xFFFFu;                          // ARR
-    TIM16_REG(0x18) = 0x1u | (0x3u << 2);               // CCMR1: CC1S = TI1, IC1PSC = /8
-    TIM16_REG(0x20) = 0x1u;                             // CCER: CC1E
-    TIM16_REG(0x00) = 0x1u;                             // CEN
+    TIM16->CR1 = 0;                                // CR1: stopped
+    TIM16_L4_OR1 = 0x1u;                             // OR1 TI1_RMP = LSI (L4)
+    TIM16->PSC = 0;                                // PSC
+    TIM16->ARR = 0xFFFFu;                          // ARR
+    TIM16->CCMR1 = 0x1u | (0x3u << 2);               // CCMR1: CC1S = TI1, IC1PSC = /8
+    TIM16->CCER = 0x1u;                             // CCER: CC1E
+    TIM16->CR1 = 0x1u;                             // CEN
     uint32_t cap[2];
     for (int i = 0; i < 3; i++) {                       // first capture is discarded
-        TIM16_REG(0x10) = 0;
-        while (!(TIM16_REG(0x10) & BIT(1)));            // CC1IF
-        uint32_t c = TIM16_REG(0x34);
+        TIM16->SR = 0;
+        while (!(TIM16->SR & BIT(1)));            // CC1IF
+        uint32_t c = TIM16->CCR1;
         if (i) cap[i - 1] = c;
     }
-    TIM16_REG(0x00) = 0;
-    TIM16_REG(0x20) = 0;
+    TIM16->CR1 = 0;
+    TIM16->CCER = 0;
     uint32_t diff = (cap[1] - cap[0]) & 0xFFFFu;        // 8 LSI periods in core clock ticks
     return diff ? (uint32_t) ((uint64_t) system_get_core_clock() * 8u / diff) : 0u;
 }
 
-#define PWR_CR5 (*(volatile uint32_t *) 0x40007080u)   /* G4 only */
 
 bool system_init_g4(uint32_t hz)
 {
@@ -215,7 +213,7 @@ bool system_init_g4(uint32_t hz)
     while (RCC->CR & BIT(25));
 
     // regulator: range 1, boost above 150 MHz (R1MODE = 0 means boost)
-    if (boost) PWR_CR5 &= ~BIT(8); else PWR_CR5 |= BIT(8);
+    if (boost) PWR->CR5 &= ~BIT(8); else PWR->CR5 |= BIT(8);
 
     // wait states first (increasing frequency), + prefetch / I- / D-cache
     FLASH->ACR = (FLASH->ACR & ~0xFu) | ws | BIT(8) | BIT(9) | BIT(10);
@@ -242,22 +240,21 @@ bool system_init_g4(uint32_t hz)
     return true;
 }
 
-#define RCC_CSR (*(volatile uint32_t *) 0x40021094u)   /* L4 and G4 */
 
 uint32_t system_reset_flags(void)
 {
-    return RCC_CSR & 0xFC000000u;
+    return RCC->CSR & 0xFC000000u;
 }
 
 void system_clear_reset_flags(void)
 {
-    RCC_CSR |= BIT(23);                        // RMVF
+    RCC->CSR |= BIT(23);                        // RMVF
 }
 
 _Noreturn void system_reset(void)
 {
     __asm volatile ("dsb" ::: "memory");
-    *(volatile uint32_t *) 0xE000ED0Cu = (0x5FAu << 16) | BIT(2);   // AIRCR SYSRESETREQ
+    SCB->AIRCR = (0x5FAu << 16) | BIT(2);           // SYSRESETREQ
     __asm volatile ("dsb" ::: "memory");
     for (;;);
 }

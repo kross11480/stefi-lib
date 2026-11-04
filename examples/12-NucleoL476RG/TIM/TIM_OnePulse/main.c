@@ -1,13 +1,17 @@
-/* TIM_OnePulse (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM1 at 16 MHz counter clock, one-pulse mode: a rising edge on CH2
- * (PA9, input, trigger TI2FP2) starts the counter; CH1 (PA8) in PWM mode 2
- * outputs one pulse: delay 16383 / 16 MHz = 1.02 ms, length
- * (65535 - 16383) / 16 MHz = 3.07 ms. */
-#include "l4_example.h"
-#include "libstefi/timer.h"
+/*
+ * TIM_OnePulse: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * A rising edge on PA9 makes TIM1 output one pulse on PA8 (1 ms delay, 3 ms long).
+ */
 
-void main(void)
-{
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+void main() {
     board_init();
     gpio_set_alternate_function(A8, AF1);
     gpio_set_alternate_function(A9, AF1);
@@ -28,5 +32,5 @@ void main(void)
     timer_set_oc_polarity(TIMER1, TIMER_CHANNEL1, true);
     timer_cc_enable(TIMER1, TIMER_CHANNEL2, true);
     timer_cc_interrupt(TIMER1, TIMER_CHANNEL2, false);
-    for (;;);                                        // the trigger starts the counter
+    while(1);                                        // the trigger starts the counter
 }

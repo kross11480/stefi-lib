@@ -1,11 +1,15 @@
-/* PWR_LPRUN_SRAM1 (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * As PWR_LPRUN, but while in low-power run the code waiting for B1 runs
- * from SRAM1 and the flash is powered down (FLASH_ACR.RUN_PD), the lowest
- * LP-run current. B1 is polled from that RAM routine (no interrupt: the
- * vector table and handlers are in flash). */
-#include "l4_example.h"
-#include "libstefi/pwr.h"
+/*
+ * PWR_LPRUN_SRAM1: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * As PWR_LPRUN, but the LP-run wait loop runs from SRAM1 with the flash off.
+ */
+
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/pwr.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
 
 #define FLASH_ACR    (*(volatile uint32_t *) 0x40022000u)
 #define FLASH_PDKEYR (*(volatile uint32_t *) 0x40022004u)
@@ -15,8 +19,7 @@
 
 /* Runs from SRAM: flash off, wait for B1 (PC13 low), flash back on. */
 __attribute__((section(".data.ramfunc"), noinline, long_call))
-static void wait_button_flash_off(void)
-{
+static void wait_button_flash_off(void) {
     FLASH_PDKEYR = 0x04152637u;
     FLASH_PDKEYR = 0xFAFBFCFDu;
     FLASH_ACR |= (1u << 13);                 // RUN_PD: flash in power-down
@@ -31,10 +34,9 @@ static void wait_button_flash_off(void)
     for (volatile uint32_t i = 0; i < 100; i++);   // tFLASH wakeup
 }
 
-void main(void)
-{
+void main() {
     board_init();
-    for (;;) {
+    while(1) {
         system_init_l4_msi(10);
         systick_init(32000000u);
         systick_start();

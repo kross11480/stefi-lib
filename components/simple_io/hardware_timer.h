@@ -20,6 +20,7 @@ typedef enum {
     HTIMER_CHANNEL_4 = TIMER_CHANNEL4,
 } htimer_channel_t;
 
+/* period_ms up to 6553 on 16-bit timers (10 kHz tick at any core clock) */
 void htimer_init_periodic_ms(htimer_id_t id, uint32_t period_ms, htimer_callbackfn_t cb);
 void htimer_init_pwm(htimer_id_t id, htimer_channel_t channel);
 void htimer_init_input_capture(htimer_id_t id, htimer_channel_t channel, htimer_callbackfn_t cb);

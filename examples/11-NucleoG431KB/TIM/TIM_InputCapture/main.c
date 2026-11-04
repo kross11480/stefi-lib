@@ -1,22 +1,21 @@
 /*
- * TIM_InputCapture (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * TIM1 at 170 MHz (prescaler 1, period 0xFFFF), CH2 = input capture on the
- * rising edges of the external signal at PA9 (AF6). The CC2 interrupt
- * takes the difference of two consecutive captures:
- *   frequency = 170 MHz / difference
- * Range ~2.6 kHz (170 MHz / 65535) to a few 100 kHz (interrupt time).
- * The measured frequency is printed every second (ST-Link VCP, 115200).
+ * TIM_InputCapture: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * Frequency on PA9 (TIM1 CH2 input capture), printed every second.
  */
-#include <stdio.h>
 
-#include "g4_example.h"
-#include "libstefi/timer.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+#include <stdio.h>
 
 static volatile uint32_t frequency_hz;
 
-static void on_capture(void *aux)
-{
+static void on_capture(void *aux) {
     (void) aux;
     static uint32_t first, have_first;
     uint32_t now = timer_get_compare(TIMER1, TIMER_CHANNEL2);
@@ -30,8 +29,7 @@ static void on_capture(void *aux)
     have_first = 0;
 }
 
-void main(void)
-{
+void main() {
     board_init();
 
     gpio_set_alternate_function(A9, AF6);
@@ -43,7 +41,7 @@ void main(void)
     timer_cc_enable(TIMER1, TIMER_CHANNEL2, true);      // CC2 interrupt (TIM1_CC)
     timer_start(TIMER1);
 
-    for (;;) {
+    while(1) {
         systick_delay_ms(1000);
         printf("frequency: %lu Hz\r\n", (unsigned long) frequency_hz);
     }

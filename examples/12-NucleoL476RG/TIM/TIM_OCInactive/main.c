@@ -1,10 +1,16 @@
-/* TIM_OCInactive (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM1, 10 kHz; CH1..CH4 in output-compare "inactive" mode with CC
- * interrupts. PC5, PC6, PC8, PC9 are set high at start; each CCx
- * interrupt (1 s, 500 ms, 250 ms, 125 ms) clears the matching pin. */
-#include "l4_example.h"
-#include "libstefi/timer.h"
-#include "libstefi/peripheral.h"
+/*
+ * TIM_OCInactive: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * PC5, PC6, PC8, PC9 go low 1 s, 500, 250, 125 ms after start (TIM1 CC interrupts).
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/peripheral.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 static const gpio_id_t out[4] = {C5, C6, C8, C9};
 static const uint32_t pulse[4] = {10000, 5000, 2500, 1250};
@@ -14,8 +20,7 @@ static void cc2(void *a) { (void) a; gpio_write(C6, LOW); }
 static void cc3(void *a) { (void) a; gpio_write(C8, LOW); }
 static void cc4(void *a) { (void) a; gpio_write(C9, LOW); }
 
-void main(void)
-{
+void main() {
     board_init();
     peripheral_gpio_enable(PERIPHERAL_GPIOC);
     for (int i = 0; i < 4; i++) { gpio_set_mode(out[i], MODER_OUTPUT); gpio_set_pupd(out[i], PULL_UP); }
@@ -33,5 +38,5 @@ void main(void)
     }
     for (int i = 0; i < 4; i++) gpio_write(out[i], HIGH);
     timer_start(TIMER1);
-    for (;;);
+    while(1);
 }

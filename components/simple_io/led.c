@@ -2,6 +2,8 @@
 
 #include "led.h"
 
+#include "libstefi/system.h"
+
 //Functions
 void led_init(stefi_led_t id, pin_mode mode) {
     uint16_t port = gpio_get_port_from_portpin(leds[id].portpin);
@@ -16,7 +18,9 @@ void led_init(stefi_led_t id, pin_mode mode) {
             gpio_set_mode(leds[id].portpin, MODER_AF);
             gpio_set_alternate_function(leds[id].portpin, leds[id].af_mode);
             timer_init(leds[id].timer_id);
-            timer_set_period(leds[id].timer_id, 16, 255); //PWM Freq=4 MhZ/(16*256) = 1 KHZ
+            //PWM Freq ~ 1 KHZ at any core clock (16 at the 4 MHz reset clock)
+            timer_set_period(leds[id].timer_id,
+                             (uint16_t) ((system_get_core_clock() + 128000u) / 256000u), 255);
             timer_set_mode_pwm(leds[id].timer_id, leds[id].channel);
             timer_cc_enable(leds[id].timer_id, leds[id].channel, false);
             timer_set_compare(leds[id].timer_id, leds[id].channel, 0);

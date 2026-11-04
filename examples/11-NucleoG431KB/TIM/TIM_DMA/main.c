@@ -1,24 +1,30 @@
 /*
- * TIM_DMA (STM32CubeG4, NUCLEO-G431KB) on stefi-lib. SYSCLK 150 MHz.
- *
- * TIM3 CH3 (PB0, AF2): 150 MHz / 8537 = 17.57 kHz PWM, active high. Its
- * capture/compare DMA request writes the next duty cycle from memory to
- * CCR3 (DMA1 ch1, word, circular): 75 %, 50 %, 25 %, 75 %, ...
- * (ST's text also mentions a repetition counter of 3, which TIM3 does not
- * have; the DMA request comes once per period.)
+ * TIM_DMA: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * TIM3 CH3 (PB0) 17.57 kHz PWM; DMA writes the next duty (75/50/25 %) into CCR3.
  */
-#include "g4_example.h"
-#include "libstefi/dma_channel.h"
-#include "libstefi/timer.h"
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/dma_channel.h>
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+static void set_core_clock(uint32_t hz) {
+    system_init_g4(hz);
+    systick_init(hz);
+    systick_start();
+}
 
 #define DMAMUX_TIM3_CH3 63u   /* RM0440 table 91 */
 
 static uint32_t cc_values[3];
 
-void main(void)
-{
+void main() {
     board_init();
-    example_set_clock(150000000);
+    set_core_clock(150000000);
 
     uint32_t period = system_get_core_clock() / 17570u - 1u;   // ARR, as in ST's example
     cc_values[0] = 75u * (period - 1u) / 100u;
@@ -45,5 +51,5 @@ void main(void)
     timer_enable_dma_request(TIMER3, TIMER_DMA_CC3);
     timer_start(TIMER3);
 
-    for (;;);
+    while(1);
 }

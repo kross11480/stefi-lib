@@ -1,13 +1,14 @@
 /*
- * TIM_PWMOutput (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * TIM1 at 170 MHz, prescaler 2 -> 85 MHz counter clock, period 1000 ->
- * 85 kHz PWM on four channels, active high:
- *   CH1 PA8  (AF6)  50 %      CH2 PA9  (AF6)  37.5 %
- *   CH3 PA10 (AF6)  25 %      CH4 PA11 (AF11) 12.5 %
+ * TIM_PWMOutput: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * TIM1 85 kHz PWM: PA8 50 %, PA9 37.5 %, PA10 25 %, PA11 12.5 %.
  */
-#include "g4_example.h"
-#include "libstefi/timer.h"
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 #define PERIOD 1000u
 
@@ -22,8 +23,7 @@ static const struct {
     {A11, AF11, PERIOD * 125 / 1000},
 };
 
-void main(void)
-{
+void main() {
     board_init();
 
     timer_init(TIMER1);
@@ -40,5 +40,5 @@ void main(void)
     }
     timer_start(TIMER1);
 
-    for (;;);
+    while(1);
 }

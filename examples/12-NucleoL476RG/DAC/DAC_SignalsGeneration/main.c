@@ -1,37 +1,37 @@
-/* DAC_SignalsGeneration (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * DAC channel 1 (PA4), triggered by TIM6 TRGO (80 MHz / 2048 = 39 kHz).
- * Each B1 press switches between:
- *   - a triangle wave: hardware generator, amplitude 1023 on top of 0x100
- *     (~1 V, tens of Hz)
- *   - an escalator: 6 steps streamed from memory by DMA (DMA1 ch3, circular,
- *     ~3 V, kHz) */
-#include "l4_example.h"
-#include "libstefi/dac.h"
-#include "libstefi/timer.h"
+/*
+ * DAC_SignalsGeneration: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * DAC ch1 (PA4), TIM6-triggered; B1 switches between a triangle wave and an
+ * escalator streamed by DMA.
+ */
+
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/dac.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 static const uint16_t escalator[6] = {0x000, 0x330, 0x660, 0x990, 0xCC0, 0xFF0};
 static volatile bool key_pressed;
 static volatile uint8_t waveform;      /* 0 escalator, 1 triangle */
 
-static void on_button(void *aux)
-{
+static void on_button(void *aux) {
     (void) aux;
     key_pressed = true;
     waveform ^= 1u;
 }
 
-void main(void)
-{
+void main() {
     board_init();
-    example_button_irq(on_button);
+    button_interrupt_init(BUTTON_USER, on_button);
 
     timer_init(TIMER6);
     timer_set_period(TIMER6, 1, 0x800);
     timer_set_master_mode(TIMER6, TIMER_TRGO_UPDATE, false);
     timer_start(TIMER6);
 
-    for (;;) {
+    while(1) {
         if (!key_pressed) continue;
         key_pressed = false;
         dac_stop_dma(1);

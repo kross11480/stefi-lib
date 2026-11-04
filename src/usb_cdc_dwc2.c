@@ -138,14 +138,14 @@ static uint32_t string_desc(const char *s)
 /**************************** core helpers ****************************/
 static void flush_tx_fifo(uint32_t num)   /* num 0..15, 0x10 = all */
 {
-    OTG_GRSTCTL = GRSTCTL_TXFFLSH | (num << 6);
-    while (OTG_GRSTCTL & GRSTCTL_TXFFLSH);
+    OTG->GRSTCTL = GRSTCTL_TXFFLSH | (num << 6);
+    while (OTG->GRSTCTL & GRSTCTL_TXFFLSH);
 }
 
 static void flush_rx_fifo(void)
 {
-    OTG_GRSTCTL = GRSTCTL_RXFFLSH;
-    while (OTG_GRSTCTL & GRSTCTL_RXFFLSH);
+    OTG->GRSTCTL = GRSTCTL_RXFFLSH;
+    while (OTG->GRSTCTL & GRSTCTL_RXFFLSH);
 }
 
 static void fifo_write(uint8_t ep, const uint8_t *src, uint32_t len)
@@ -171,8 +171,8 @@ static void fifo_read(uint8_t *dst, uint32_t len)
 
 static void ep0_arm_out(void)
 {
-    OTG_DOEPTSIZ(0) = DOEPTSIZ0_STUPCNT_3 | (1u << EPTSIZ_PKTCNT_POS) | EP0_MPS;
-    OTG_DOEPCTL(0) |= EPCTL_EPENA | EPCTL_CNAK;
+    OTG_OUTEP(0)->DOEPTSIZ = DOEPTSIZ0_STUPCNT_3 | (1u << EPTSIZ_PKTCNT_POS) | EP0_MPS;
+    OTG_OUTEP(0)->DOEPCTL |= EPCTL_EPENA | EPCTL_CNAK;
 }
 
 /* Data (or status, len = 0) stage on EP0 IN; len <= 127 (2 packets + rest). */
@@ -180,8 +180,8 @@ static void ep0_send(const uint8_t *data, uint32_t len, uint16_t w_length)
 {
     if (len > w_length) len = w_length;
     uint32_t pkts = (len == 0) ? 1u : (len + EP0_MPS - 1u) / EP0_MPS;
-    OTG_DIEPTSIZ(0) = (pkts << EPTSIZ_PKTCNT_POS) | len;
-    OTG_DIEPCTL(0) |= EPCTL_EPENA | EPCTL_CNAK;
+    OTG_INEP(0)->DIEPTSIZ = (pkts << EPTSIZ_PKTCNT_POS) | len;
+    OTG_INEP(0)->DIEPCTL |= EPCTL_EPENA | EPCTL_CNAK;
     fifo_write(0, data, len);
 }
 
@@ -192,14 +192,14 @@ static void ep0_status_in(void)
 
 static void ep0_stall(void)
 {
-    OTG_DIEPCTL(0) |= EPCTL_STALL;
-    OTG_DOEPCTL(0) |= EPCTL_STALL;   /* both cleared by the core on the next SETUP */
+    OTG_INEP(0)->DIEPCTL |= EPCTL_STALL;
+    OTG_OUTEP(0)->DOEPCTL |= EPCTL_STALL;   /* both cleared by the core on the next SETUP */
 }
 
 static void ep1_arm_out(void)
 {
-    OTG_DOEPTSIZ(EP_DATA) = (1u << EPTSIZ_PKTCNT_POS) | DATA_MPS;
-    OTG_DOEPCTL(EP_DATA) |= EPCTL_EPENA | EPCTL_CNAK;
+    OTG_OUTEP(EP_DATA)->DOEPTSIZ = (1u << EPTSIZ_PKTCNT_POS) | DATA_MPS;
+    OTG_OUTEP(EP_DATA)->DOEPCTL |= EPCTL_EPENA | EPCTL_CNAK;
 }
 
 static void set_line_state(bool dtr, bool rts)
@@ -214,20 +214,20 @@ static void configure_endpoints(uint8_t value)
 {
     usb.config_value = value;
     if (value == 0) {
-        OTG_DIEPCTL(EP_DATA) &= ~EPCTL_USBAEP;
-        OTG_DIEPCTL(EP_NOTIF) &= ~EPCTL_USBAEP;
-        OTG_DOEPCTL(EP_DATA) &= ~EPCTL_USBAEP;
+        OTG_INEP(EP_DATA)->DIEPCTL &= ~EPCTL_USBAEP;
+        OTG_INEP(EP_NOTIF)->DIEPCTL &= ~EPCTL_USBAEP;
+        OTG_OUTEP(EP_DATA)->DOEPCTL &= ~EPCTL_USBAEP;
         usb.configured = false;
         return;
     }
     flush_tx_fifo(EP_DATA);
     flush_tx_fifo(EP_NOTIF);
-    OTG_DIEPCTL(EP_DATA) = DATA_MPS | EPCTL_USBAEP | (2u << EPCTL_EPTYP_POS)
+    OTG_INEP(EP_DATA)->DIEPCTL = DATA_MPS | EPCTL_USBAEP | (2u << EPCTL_EPTYP_POS)
                          | (EP_DATA << EPCTL_TXFNUM_POS) | EPCTL_SD0PID | EPCTL_SNAK;
-    OTG_DIEPCTL(EP_NOTIF) = NOTIF_MPS | EPCTL_USBAEP | (3u << EPCTL_EPTYP_POS)
+    OTG_INEP(EP_NOTIF)->DIEPCTL = NOTIF_MPS | EPCTL_USBAEP | (3u << EPCTL_EPTYP_POS)
                           | (EP_NOTIF << EPCTL_TXFNUM_POS) | EPCTL_SD0PID | EPCTL_SNAK;
-    OTG_DOEPCTL(EP_DATA) = DATA_MPS | EPCTL_USBAEP | (2u << EPCTL_EPTYP_POS) | EPCTL_SD0PID;
-    OTG_DAINTMSK |= (1u << (16 + EP_DATA));
+    OTG_OUTEP(EP_DATA)->DOEPCTL = DATA_MPS | EPCTL_USBAEP | (2u << EPCTL_EPTYP_POS) | EPCTL_SD0PID;
+    OTG_DEVICE->DAINTMSK |= (1u << (16 + EP_DATA));
     ep1_arm_out();
     usb.configured = true;
 }
@@ -275,7 +275,7 @@ static void handle_setup(void)
             case REQ_SET_ADDRESS:
                 /* DWC2: latch the address now, the core answers the status
                  * stage still on address 0. */
-                OTG_DCFG = (OTG_DCFG & ~DCFG_DAD_MSK)
+                OTG_DEVICE->DCFG = (OTG_DEVICE->DCFG & ~DCFG_DAD_MSK)
                          | (((uint32_t) req->wValue & 0x7Fu) << DCFG_DAD_POS);
                 ep0_status_in();
                 return;
@@ -346,15 +346,15 @@ static void handle_usb_reset(void)
     flush_tx_fifo(0x10);
     flush_rx_fifo();
     for (uint32_t ep = 0; ep < NUM_EPS; ep++) {
-        OTG_DIEPINT(ep) = 0xFFFFu;
-        OTG_DOEPINT(ep) = 0xFFFFu;
-        OTG_DIEPCTL(ep) &= ~EPCTL_STALL;
-        OTG_DOEPCTL(ep) = (OTG_DOEPCTL(ep) & ~EPCTL_STALL) | EPCTL_SNAK;
+        OTG_INEP(ep)->DIEPINT = 0xFFFFu;
+        OTG_OUTEP(ep)->DOEPINT = 0xFFFFu;
+        OTG_INEP(ep)->DIEPCTL &= ~EPCTL_STALL;
+        OTG_OUTEP(ep)->DOEPCTL = (OTG_OUTEP(ep)->DOEPCTL & ~EPCTL_STALL) | EPCTL_SNAK;
     }
-    OTG_DAINTMSK = (1u << 16);                  /* OUT EP0 */
-    OTG_DOEPMSK = DOEPINT_STUP | EPINT_XFRC;
-    OTG_DIEPMSK = 0;
-    OTG_DCFG &= ~DCFG_DAD_MSK;
+    OTG_DEVICE->DAINTMSK = (1u << 16);                  /* OUT EP0 */
+    OTG_DEVICE->DOEPMSK = DOEPINT_STUP | EPINT_XFRC;
+    OTG_DEVICE->DIEPMSK = 0;
+    OTG_DEVICE->DCFG &= ~DCFG_DAD_MSK;
     usb.configured = false;
     usb.config_value = 0;
     usb.ep0_out_pending = false;
@@ -364,7 +364,7 @@ static void handle_usb_reset(void)
 
 static void handle_rx_fifo(void)
 {
-    uint32_t sts = OTG_GRXSTSP;
+    uint32_t sts = OTG->GRXSTSP;
     uint8_t ep = GRXSTS_EPNUM(sts);
     uint32_t bcnt = GRXSTS_BCNT(sts);
 
@@ -396,11 +396,11 @@ static void handle_rx_fifo(void)
 
 static void handle_out_endpoints(void)
 {
-    uint32_t daint = OTG_DAINT & OTG_DAINTMSK;
+    uint32_t daint = OTG_DEVICE->DAINT & OTG_DEVICE->DAINTMSK;
 
     if (daint & (1u << 16)) {
-        uint32_t ints = OTG_DOEPINT(0);
-        OTG_DOEPINT(0) = ints;
+        uint32_t ints = OTG_OUTEP(0)->DOEPINT;
+        OTG_OUTEP(0)->DOEPINT = ints;
         if (ints & EPINT_XFRC) {
             handle_ep0_out_done();
         }
@@ -410,8 +410,8 @@ static void handle_out_endpoints(void)
         ep0_arm_out();
     }
     if (daint & (1u << (16 + EP_DATA))) {
-        uint32_t ints = OTG_DOEPINT(EP_DATA);
-        OTG_DOEPINT(EP_DATA) = ints;
+        uint32_t ints = OTG_OUTEP(EP_DATA)->DOEPINT;
+        OTG_OUTEP(EP_DATA)->DOEPINT = ints;
         if ((ints & EPINT_XFRC) && usb.configured) {
             ep1_arm_out();
         }
@@ -420,26 +420,26 @@ static void handle_out_endpoints(void)
 
 void OTG_FS_IRQHandler(void)
 {
-    uint32_t sts = OTG_GINTSTS & OTG_GINTMSK;
+    uint32_t sts = OTG->GINTSTS & OTG->GINTMSK;
 
     if (sts & GINT_USBRST) {
-        OTG_GINTSTS = GINT_USBRST;
+        OTG->GINTSTS = GINT_USBRST;
         handle_usb_reset();
     }
     if (sts & GINT_ENUMDNE) {
-        OTG_GINTSTS = GINT_ENUMDNE;
-        OTG_DIEPCTL(0) &= ~0x3u;                 /* EP0 MPSIZ = 64 bytes */
-        OTG_DCTL |= DCTL_CGINAK;
-        OTG_GUSBCFG = (OTG_GUSBCFG & ~GUSBCFG_TRDT_MSK) | (6u << GUSBCFG_TRDT_POS);
+        OTG->GINTSTS = GINT_ENUMDNE;
+        OTG_INEP(0)->DIEPCTL &= ~0x3u;                 /* EP0 MPSIZ = 64 bytes */
+        OTG_DEVICE->DCTL |= DCTL_CGINAK;
+        OTG->GUSBCFG = (OTG->GUSBCFG & ~GUSBCFG_TRDT_MSK) | (6u << GUSBCFG_TRDT_POS);
     }
-    while (OTG_GINTSTS & GINT_RXFLVL) {
+    while (OTG->GINTSTS & GINT_RXFLVL) {
         handle_rx_fifo();
     }
     if (sts & GINT_OEPINT) {
         handle_out_endpoints();
     }
     if (sts & GINT_USBSUSP) {
-        OTG_GINTSTS = GINT_USBSUSP;
+        OTG->GINTSTS = GINT_USBSUSP;
     }
 }
 
@@ -481,67 +481,67 @@ void usb_cdc_init(const usb_cdc_config_t *cfg)
     peripheral_usb_otg_fs_enable();
 
     // core: embedded FS PHY, soft reset, transceiver on
-    OTG_GAHBCFG &= ~GAHBCFG_GINTMSK;
-    OTG_GUSBCFG |= GUSBCFG_PHYSEL;
-    while (!(OTG_GRSTCTL & GRSTCTL_AHBIDL));
-    OTG_GRSTCTL |= GRSTCTL_CSRST;
-    while (OTG_GRSTCTL & GRSTCTL_CSRST);
+    OTG->GAHBCFG &= ~GAHBCFG_GINTMSK;
+    OTG->GUSBCFG |= GUSBCFG_PHYSEL;
+    while (!(OTG->GRSTCTL & GRSTCTL_AHBIDL));
+    OTG->GRSTCTL |= GRSTCTL_CSRST;
+    while (OTG->GRSTCTL & GRSTCTL_CSRST);
     for (volatile uint32_t i = 0; i < 1000u; i++);
-    OTG_GCCFG |= GCCFG_PWRDWN;
+    OTG->GCCFG |= GCCFG_PWRDWN;
 
     // force device mode (takes effect after >= 25 ms)
-    OTG_GUSBCFG = (OTG_GUSBCFG & ~(GUSBCFG_FHMOD | GUSBCFG_FDMOD | GUSBCFG_TRDT_MSK))
+    OTG->GUSBCFG = (OTG->GUSBCFG & ~(GUSBCFG_FHMOD | GUSBCFG_FDMOD | GUSBCFG_TRDT_MSK))
                 | GUSBCFG_FDMOD | (6u << GUSBCFG_TRDT_POS);
     for (volatile uint32_t i = 0; i < 2000000u; i++);   /* ~50 ms at 200 MHz, ~120 ms at 80 MHz */
 
     // device: no VBUS sensing on PA9, force B-session valid instead
-    OTG_DCTL |= DCTL_SDIS;
-    OTG_GCCFG &= ~GCCFG_VBDEN;
-    OTG_GOTGCTL |= GOTGCTL_BVALOEN | GOTGCTL_BVALOVAL;
+    OTG_DEVICE->DCTL |= DCTL_SDIS;
+    OTG->GCCFG &= ~GCCFG_VBDEN;
+    OTG->GOTGCTL |= GOTGCTL_BVALOEN | GOTGCTL_BVALOVAL;
     OTG_PCGCCTL = 0;
-    OTG_DCFG = (OTG_DCFG & ~0x3u) | DCFG_DSPD_FS;
+    OTG_DEVICE->DCFG = (OTG_DEVICE->DCFG & ~0x3u) | DCFG_DSPD_FS;
 
     // FIFO RAM partition
-    OTG_GRXFSIZ = RX_FIFO_WORDS;
-    OTG_DIEPTXF0 = (TX0_FIFO_WORDS << 16) | RX_FIFO_WORDS;
-    OTG_DIEPTXF(1) = (TX1_FIFO_WORDS << 16) | (RX_FIFO_WORDS + TX0_FIFO_WORDS);
-    OTG_DIEPTXF(2) = (TX2_FIFO_WORDS << 16) | (RX_FIFO_WORDS + TX0_FIFO_WORDS + TX1_FIFO_WORDS);
-    for (uint32_t n = 3; n < NUM_EPS; n++) OTG_DIEPTXF(n) = 0;
+    OTG->GRXFSIZ = RX_FIFO_WORDS;
+    OTG->DIEPTXF0 = (TX0_FIFO_WORDS << 16) | RX_FIFO_WORDS;
+    OTG->DIEPTXF[(1) - 1u] = (TX1_FIFO_WORDS << 16) | (RX_FIFO_WORDS + TX0_FIFO_WORDS);
+    OTG->DIEPTXF[(2) - 1u] = (TX2_FIFO_WORDS << 16) | (RX_FIFO_WORDS + TX0_FIFO_WORDS + TX1_FIFO_WORDS);
+    for (uint32_t n = 3; n < NUM_EPS; n++) OTG->DIEPTXF[(n) - 1u] = 0;
     flush_tx_fifo(0x10);
     flush_rx_fifo();
 
     // all endpoints idle, all interrupts cleared
-    OTG_DIEPMSK = 0;
-    OTG_DOEPMSK = 0;
-    OTG_DAINTMSK = 0;
+    OTG_DEVICE->DIEPMSK = 0;
+    OTG_DEVICE->DOEPMSK = 0;
+    OTG_DEVICE->DAINTMSK = 0;
     for (uint32_t ep = 0; ep < NUM_EPS; ep++) {
-        OTG_DIEPCTL(ep) = (OTG_DIEPCTL(ep) & EPCTL_EPENA) ? (EPCTL_EPDIS | EPCTL_SNAK) : 0;
-        OTG_DIEPTSIZ(ep) = 0;
-        OTG_DIEPINT(ep) = 0xFB7Fu;
-        OTG_DOEPCTL(ep) = (OTG_DOEPCTL(ep) & EPCTL_EPENA) ? (EPCTL_EPDIS | EPCTL_SNAK) : 0;
-        OTG_DOEPTSIZ(ep) = 0;
-        OTG_DOEPINT(ep) = 0xFB7Fu;
+        OTG_INEP(ep)->DIEPCTL = (OTG_INEP(ep)->DIEPCTL & EPCTL_EPENA) ? (EPCTL_EPDIS | EPCTL_SNAK) : 0;
+        OTG_INEP(ep)->DIEPTSIZ = 0;
+        OTG_INEP(ep)->DIEPINT = 0xFB7Fu;
+        OTG_OUTEP(ep)->DOEPCTL = (OTG_OUTEP(ep)->DOEPCTL & EPCTL_EPENA) ? (EPCTL_EPDIS | EPCTL_SNAK) : 0;
+        OTG_OUTEP(ep)->DOEPTSIZ = 0;
+        OTG_OUTEP(ep)->DOEPINT = 0xFB7Fu;
     }
-    OTG_GINTMSK = 0;
-    OTG_GINTSTS = 0xBFFFFFFFu;
-    OTG_GINTMSK = GINT_RXFLVL | GINT_USBRST | GINT_ENUMDNE | GINT_OEPINT | GINT_USBSUSP;
+    OTG->GINTMSK = 0;
+    OTG->GINTSTS = 0xBFFFFFFFu;
+    OTG->GINTMSK = GINT_RXFLVL | GINT_USBRST | GINT_ENUMDNE | GINT_OEPINT | GINT_USBSUSP;
 
     interrupts_enable_source(INTERRUPT_SOURCE_OTG_FS);
-    OTG_GAHBCFG |= GAHBCFG_GINTMSK;
+    OTG->GAHBCFG |= GAHBCFG_GINTMSK;
 
-    OTG_DCTL &= ~DCTL_SDIS;   // connect: D+ pull-up on
+    OTG_DEVICE->DCTL &= ~DCTL_SDIS;   // connect: D+ pull-up on
 }
 
 /* Stop a blocked IN transfer: NAK, disable, drop what is left in the FIFO. */
 static void ep1_in_abort(void)
 {
-    if (OTG_DIEPCTL(EP_DATA) & EPCTL_EPENA) {
-        OTG_DIEPCTL(EP_DATA) |= EPCTL_SNAK;
-        OTG_DIEPCTL(EP_DATA) |= EPCTL_EPDIS;
-        for (volatile uint32_t g = 0; (OTG_DIEPCTL(EP_DATA) & EPCTL_EPENA) && g < 100000u; g++);
+    if (OTG_INEP(EP_DATA)->DIEPCTL & EPCTL_EPENA) {
+        OTG_INEP(EP_DATA)->DIEPCTL |= EPCTL_SNAK;
+        OTG_INEP(EP_DATA)->DIEPCTL |= EPCTL_EPDIS;
+        for (volatile uint32_t g = 0; (OTG_INEP(EP_DATA)->DIEPCTL & EPCTL_EPENA) && g < 100000u; g++);
     }
     flush_tx_fifo(EP_DATA);
-    OTG_DIEPINT(EP_DATA) = 0xFFFFu;
+    OTG_INEP(EP_DATA)->DIEPINT = 0xFFFFu;
 }
 
 static bool write_aborted(uint32_t epoch)
@@ -552,28 +552,28 @@ static bool write_aborted(uint32_t epoch)
 /* One programmed transfer of up to IN_CHUNK bytes (0 = ZLP). */
 static bool ep1_in_xfer(const uint8_t *p, uint32_t n, uint32_t epoch)
 {
-    while (OTG_DIEPCTL(EP_DATA) & EPCTL_EPENA) {
+    while (OTG_INEP(EP_DATA)->DIEPCTL & EPCTL_EPENA) {
         if (write_aborted(epoch)) { ep1_in_abort(); return false; }
     }
     uint32_t pkts = (n == 0) ? 1u : (n + DATA_MPS - 1u) / DATA_MPS;
-    OTG_DIEPINT(EP_DATA) = EPINT_XFRC;
-    OTG_DIEPTSIZ(EP_DATA) = (pkts << EPTSIZ_PKTCNT_POS) | n;
-    OTG_DIEPCTL(EP_DATA) |= EPCTL_EPENA | EPCTL_CNAK;
+    OTG_INEP(EP_DATA)->DIEPINT = EPINT_XFRC;
+    OTG_INEP(EP_DATA)->DIEPTSIZ = (pkts << EPTSIZ_PKTCNT_POS) | n;
+    OTG_INEP(EP_DATA)->DIEPCTL |= EPCTL_EPENA | EPCTL_CNAK;
 
     while (n > 0) {
         uint32_t plen = n < DATA_MPS ? n : DATA_MPS;
         uint32_t words = (plen + 3u) / 4u;
-        while ((OTG_DTXFSTS(EP_DATA) & 0xFFFFu) < words) {
+        while ((OTG_INEP(EP_DATA)->DTXFSTS & 0xFFFFu) < words) {
             if (write_aborted(epoch)) { ep1_in_abort(); return false; }
         }
         fifo_write(EP_DATA, p, plen);
         p += plen;
         n -= plen;
     }
-    while (!(OTG_DIEPINT(EP_DATA) & EPINT_XFRC)) {
+    while (!(OTG_INEP(EP_DATA)->DIEPINT & EPINT_XFRC)) {
         if (write_aborted(epoch)) { ep1_in_abort(); return false; }
     }
-    OTG_DIEPINT(EP_DATA) = EPINT_XFRC;
+    OTG_INEP(EP_DATA)->DIEPINT = EPINT_XFRC;
     return true;
 }
 

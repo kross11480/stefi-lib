@@ -65,4 +65,12 @@ them with the normal presets; the ELF ends up in
     and UART — see [the overview](g431-cube-examples.md).
     Builds with `-DSTEFI_BOARD=nucleo_g431kb`.
 
+- **12 — NUCLEO-L476RG (STM32CubeL4 examples)**
+
+    All 72 of ST's NUCLEO-L476RG examples on stefi-lib: COMP, CRC, Cortex
+    MPU/privilege, DAC, firewall, dual-bank flash, GPIO, I2C, IWDG/WWDG, LPTIM,
+    OPAMP, every low-power mode, RCC, RTC, SPI, timers and UART — see
+    [the overview](l476-cube-examples.md).
+    Builds with `-DSTEFI_BOARD=nucleo_l476rg`.
+
 </div>

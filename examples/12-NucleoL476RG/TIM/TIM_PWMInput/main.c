@@ -1,17 +1,21 @@
-/* TIM_PWMInput (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM3 at 80 MHz in PWM-input mode on PC7 (TI2, AF2): IC2 direct rising
- * (period), IC1 indirect falling (high time), slave reset on TI2FP2.
- * CC2 interrupt: frequency = 80 MHz / CCR2, duty = CCR1 * 100 / CCR2 %.
- * Printed every second on the VCP; LD2 on: error (period 0). */
-#include <stdio.h>
+/*
+ * TIM_PWMInput: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * Frequency and duty cycle on PC7 (TIM3 PWM-input mode), printed every second.
+ */
 
-#include "l4_example.h"
-#include "libstefi/timer.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+#include <stdio.h>
 
 static volatile uint32_t frequency_hz, duty_percent;
 
-static void on_capture(void *aux)
-{
+static void on_capture(void *aux) {
     (void) aux;
     uint32_t period = timer_get_compare(TIMER3, TIMER_CHANNEL2);
     if (!period) { led_on(LED2); return; }
@@ -19,8 +23,7 @@ static void on_capture(void *aux)
     frequency_hz = system_get_core_clock() / period;
 }
 
-void main(void)
-{
+void main() {
     board_init();
     gpio_set_alternate_function(C7, AF2);
     gpio_set_mode(C7, MODER_AF);
@@ -35,7 +38,7 @@ void main(void)
     timer_cc_interrupt(TIMER3, TIMER_CHANNEL1, false);
     timer_cc_enable(TIMER3, TIMER_CHANNEL2, true);
     timer_start(TIMER3);
-    for (;;) {
+    while(1) {
         systick_delay_ms(1000);
         printf("frequency: %lu Hz, duty cycle: %lu %%\r\n", (unsigned long) frequency_hz, (unsigned long) duty_percent);
     }

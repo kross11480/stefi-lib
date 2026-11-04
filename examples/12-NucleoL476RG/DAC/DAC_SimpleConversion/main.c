@@ -1,22 +1,25 @@
-/* DAC_SimpleConversion (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * Step 0: DAC channel 1 (PA4), normal mode with output buffer, outputs
- *         0xFF in 8-bit right alignment: 3.3 V.
- * Press B1 -> step 1: the same in sample & hold (low-power) mode, clocked
- *         by the LSI (sample 20, hold 10, refresh 5 cycles), with the core
- *         in Sleep mode. Measure PA4 with an oscilloscope. */
-#include "l4_example.h"
-#include "libstefi/dac.h"
-#include "libstefi/pwr.h"
+/*
+ * DAC_SimpleConversion: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * DAC ch1 (PA4) outputs 0xFF (3.3 V); after B1, in sample & hold mode with
+ * the core in Sleep.
+ */
 
-void main(void)
-{
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/dac.h>
+#include <libstefi/pwr.h>
+#include <libstefi/systick.h>
+#include <libstefi/util.h>
+
+void main() {
     board_init();
 
     dac_init(1, DAC_MODE_NORMAL_BUFFERED, DAC_TRIGGER_NONE);
     dac_write8(1, 0xFF);
 
-    while (!example_button_pressed());
+    while (!button_is_pressed(BUTTON_USER));
 
     // sample & hold runs on the LSI
     *(volatile uint32_t *) 0x40021094u |= BIT(0);            // RCC_CSR LSION
@@ -27,5 +30,5 @@ void main(void)
     dac_write8(1, 0xFF);
 
     systick_stop();                                          // no tick interrupt in Sleep
-    for (;;) pwr_enter_sleep();
+    while(1) pwr_enter_sleep();
 }

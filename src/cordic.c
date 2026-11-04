@@ -5,12 +5,10 @@
 #include "libstefi/dma_channel.h"
 #include "libstefi/util.h"
 #include "internal/rcc_internal.h"
+#include "internal/cordic_internal.h"
 
 #include <stddef.h>
 
-#define CORDIC_CSR   (*(volatile uint32_t *) 0x40020C00u)
-#define CORDIC_WDATA (*(volatile uint32_t *) 0x40020C04u)
-#define CORDIC_RDATA (*(volatile uint32_t *) 0x40020C08u)
 
 #define CSR_DMAREN   BIT(17)
 #define CSR_DMAWEN   BIT(18)
@@ -30,7 +28,7 @@ void cordic_configure(const cordic_config_t *cfg)
 {
     RCC->AHB1ENR |= BIT(3);           // CORDICEN
     (void) RCC->AHB1ENR;
-    CORDIC_CSR = ((uint32_t) cfg->function & 0xFu)
+    CORDIC->CSR = ((uint32_t) cfg->function & 0xFu)
                | ((uint32_t) (cfg->precision & 0xFu) << 4)
                | ((uint32_t) (cfg->scale & 0x7u) << 8)
                | (cfg->two_results ? BIT(19) : 0u)
@@ -40,9 +38,9 @@ void cordic_configure(const cordic_config_t *cfg)
 
 int32_t cordic_calculate(int32_t arg)
 {
-    CORDIC_WDATA = (uint32_t) arg;    // writing the (last) argument starts it
-    while (!(CORDIC_CSR & CSR_RRDY));
-    return (int32_t) CORDIC_RDATA;
+    CORDIC->WDATA = (uint32_t) arg;    // writing the (last) argument starts it
+    while (!(CORDIC->CSR & CSR_RRDY));
+    return (int32_t) CORDIC->RDATA;
 }
 
 static void on_read_done(void *aux, uint32_t flags)
@@ -51,7 +49,7 @@ static void on_read_done(void *aux, uint32_t flags)
     if (!(flags & (DMA_CHANNEL_FLAG_TC | DMA_CHANNEL_FLAG_TE))) return;
     dma_channel_disable(PERIPHERAL_DMA1, dma.ch_read);
     dma_channel_disable(PERIPHERAL_DMA1, dma.ch_write);
-    CORDIC_CSR &= ~(CSR_DMAREN | CSR_DMAWEN);
+    CORDIC->CSR &= ~(CSR_DMAREN | CSR_DMAWEN);
     dma.busy = false;
     if (dma.done) dma.done();
 }
@@ -75,11 +73,11 @@ void cordic_calculate_dma(const int32_t *args, int32_t *results, uint16_t n,
         .mem_inc = true, .priority = DMA_PRIORITY_HIGH,
     };
     dma_channel_register_handler(PERIPHERAL_DMA1, ch_read, on_read_done, NULL);
-    dma_channel_configure(&rd, &CORDIC_RDATA, results, n);
-    dma_channel_configure(&wr, &CORDIC_WDATA, (void *) args, n);
+    dma_channel_configure(&rd, &CORDIC->RDATA, results, n);
+    dma_channel_configure(&wr, &CORDIC->WDATA, (void *) args, n);
     dma_channel_enable(PERIPHERAL_DMA1, ch_read);
     dma_channel_enable(PERIPHERAL_DMA1, ch_write);
-    CORDIC_CSR |= CSR_DMAREN | CSR_DMAWEN;   // requests start flowing
+    CORDIC->CSR |= CSR_DMAREN | CSR_DMAWEN;   // requests start flowing
 }
 
 bool cordic_dma_busy(void)

@@ -1,27 +1,35 @@
 /*
- * FMAC_IIR_PollingToDMA (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * The FMAC runs an IIR filter (7 feed-forward taps, 6 feedback taps,
- * gain 1, no clipping), memory split as in ST's example:
- *     0..12   coefficients (B then A)
- *    13..133  input buffer  (7 + D1 = 114)
- *   134..254  output buffer (6 + D2 = 115)
- * Coefficients and the 121 input samples are written by polling (preload);
- * the 115 outputs are read by DMA (DMA1 ch1). The result is compared with
- * fmac_model_iir(), a bit-exact software model of the FMAC arithmetic
- * (checked against ST's reference table: 115/115 identical).
- *   LED2 on:                     results identical to the model
- *   LED2 blinking (1 s period):  mismatch or FMAC error flag
- * The input is a two-tone test signal generated here (ST ships a table).
+ * FMAC_IIR_PollingToDMA: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * IIR filter (7 + 6 taps) on the FMAC: preload by polling, outputs by DMA,
+ * checked against fmac_model_iir(). LED2 on: identical; blinking: error.
  */
+
 #include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
 #endif
 
-#include "g4_example.h"
-#include "libstefi/fmac.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/systick.h>
+#include <libstefi/util.h>
+#include <libstefi/fmac.h>
+
+/* LED2 blinking with a 1 s period: error */
+static void led_error_forever() {
+    while(1) {
+        led_toggle(LED2);
+        systick_delay_ms(500);
+    }
+}
+
+/* LED2 on: passed */
+static void led_success_forever() {
+    led_on(LED2);
+    while(1);
+}
 
 #define P  7     /* feed-forward taps */
 #define Q  6     /* feedback taps */
@@ -48,8 +56,7 @@ static volatile bool half_ready, all_ready;
 static void on_half(void) { half_ready = true; }
 static void on_done(void) { all_ready = true; }
 
-void main(void)
-{
+void main() {
     board_init();
 
     for (uint32_t n = 0; n < INPUT_SIZE; n++) {
@@ -75,12 +82,12 @@ void main(void)
     while (!all_ready);
     fmac_stop();
 
-    if (fmac_status() & (BIT(8) | BIT(9) | BIT(10))) example_error();   // OVFL UNFL SAT
+    if (fmac_status() & (BIT(8) | BIT(9) | BIT(10))) led_error_forever();   // OVFL UNFL SAT
 
     uint32_t n = fmac_model_iir(coeff_b, P, coeff_a, Q, R, input, INPUT_SIZE, y_preload, false, expected);
-    if (n != D2) example_error();
+    if (n != D2) led_error_forever();
     for (uint32_t i = 0; i < D2; i++) {
-        if (calculated[i] != expected[i]) example_error();
+        if (calculated[i] != expected[i]) led_error_forever();
     }
-    example_success();
+    led_success_forever();
 }

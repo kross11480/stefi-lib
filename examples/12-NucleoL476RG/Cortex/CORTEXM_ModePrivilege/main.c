@@ -1,16 +1,30 @@
-/* CORTEXM_ModePrivilege (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- *  1. Thread mode stack: main stack -> process stack (PSP, 512 bytes)
- *  2. Thread mode: privileged -> unprivileged
- *  3. back to privileged: writing CONTROL from unprivileged code has no
- *     effect, so an SVC handler (privileged) does it
- * The state after each step is kept in the variables below (watch them in
- * the debugger) and printed on the VCP. LD2 on: the sequence behaved as
- * expected. */
+/*
+ * CORTEXM_ModePrivilege: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * Thread mode to the process stack, unprivileged, and back to privileged
+ * through an SVC. LED2 on: sequence as expected.
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/cortex.h>
+#include <libstefi/systick.h>
+
 #include <stdio.h>
 
-#include "l4_example.h"
-#include "libstefi/cortex.h"
+/* LED2 blinking with a 1 s period: error */
+static void led_error_forever() {
+    while(1) {
+        led_toggle(LED2);
+        systick_delay_ms(500);
+    }
+}
+
+/* LED2 on: passed */
+static void led_success_forever() {
+    led_on(LED2);
+    while(1);
+}
 
 #define SP_PROCESS_SIZE 0x200u
 
@@ -18,8 +32,7 @@ static uint32_t psp_stack[SP_PROCESS_SIZE / 4] __attribute__((aligned(8)));
 volatile bool on_process_stack, privileged_after_drop, privileged_after_write, privileged_after_svc;
 volatile uint32_t psp_value;
 
-void main(void)
-{
+void main() {
     board_init();
 
     cortex_use_process_stack(&psp_stack[SP_PROCESS_SIZE / 4]);
@@ -44,7 +57,7 @@ void main(void)
            !privileged_after_write, privileged_after_svc);
 
     if (on_process_stack && !privileged_after_drop && !privileged_after_write && privileged_after_svc) {
-        example_success();
+        led_success_forever();
     }
-    example_error();
+    led_error_forever();
 }

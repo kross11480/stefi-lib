@@ -1,25 +1,26 @@
-/* RTC_TimeStamp (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * Calendar set to Monday 2014-04-14 08:10:00; timestamp on the TS pin
- * (PC13 = B1), rising edge (release of B1). The current time is printed
- * on the VCP every second; on each timestamp event LD2 toggles and the
- * latched time/date is printed. */
-#include <stdio.h>
+/*
+ * RTC_TimeStamp: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * Releasing B1 (TS pin PC13) latches a timestamp; time and stamps on the VCP.
+ */
 
-#include "l4_example.h"
-#include "libstefi/rtc.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/rtc.h>
+#include <libstefi/systick.h>
+
+#include <stddef.h>
+#include <stdio.h>
 
 static volatile bool stamped;
 
-static void on_timestamp(void *aux)
-{
+static void on_timestamp(void *aux) {
     (void) aux;
     stamped = true;
     led_toggle(LED2);
 }
 
-void main(void)
-{
+void main() {
     board_init();
     rtc_init_lsi();
     rtc_set_prescaler(0x7F, 0xF9);
@@ -28,7 +29,7 @@ void main(void)
     rtc_set_datetime(&t);
     rtc_timestamp_enable(false, on_timestamp, NULL);
 
-    for (;;) {
+    while(1) {
         rtc_datetime_t now;
         rtc_get_datetime(&now);
         printf("%02u:%02u:%02u  %02u-%02u-%02u\r\n", now.hours, now.minutes, now.seconds,

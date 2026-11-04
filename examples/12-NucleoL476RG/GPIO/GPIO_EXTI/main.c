@@ -1,16 +1,21 @@
-/* GPIO_EXTI (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * EXTI line 13 (PC13, B1) on the falling edge; the interrupt toggles LD2. */
-#include "l4_example.h"
+/*
+ * GPIO_EXTI: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * Each B1 press (EXTI 13) toggles LED2.
+ */
 
-static void on_button(void *aux)
-{
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/systick.h>
+
+static void on_button(void *aux) {
     (void) aux;
     led_toggle(LED2);
 }
 
-void main(void)
-{
+void main() {
     board_init();
-    example_button_irq(on_button);
-    for (;;);
+    button_interrupt_init(BUTTON_USER, on_button);
+    while(1);
 }

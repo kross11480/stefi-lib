@@ -6,40 +6,65 @@
 /* STM32F7: RM0410 §42, STM32L4: RM0351 §47 (same core, same base).   */
 /* Device mode only; slave (non-DMA) FIFO access.                     */
 /**********************************************************************/
-#define OTG_FS_BASE 0x50000000u
+typedef struct {
+    volatile uint32_t GOTGCTL;   /*!< OTG control and status,        Address offset: 0x000 */
+    volatile uint32_t GOTGINT;   /*!< OTG interrupt,                 Address offset: 0x004 */
+    volatile uint32_t GAHBCFG;   /*!< AHB configuration,             Address offset: 0x008 */
+    volatile uint32_t GUSBCFG;   /*!< USB configuration,             Address offset: 0x00C */
+    volatile uint32_t GRSTCTL;   /*!< reset,                         Address offset: 0x010 */
+    volatile uint32_t GINTSTS;   /*!< core interrupt,                Address offset: 0x014 */
+    volatile uint32_t GINTMSK;   /*!< interrupt mask,                Address offset: 0x018 */
+    volatile uint32_t GRXSTSR;   /*!< receive status debug read,     Address offset: 0x01C */
+    volatile uint32_t GRXSTSP;   /*!< receive status read and pop,   Address offset: 0x020 */
+    volatile uint32_t GRXFSIZ;   /*!< receive FIFO size,             Address offset: 0x024 */
+    volatile uint32_t DIEPTXF0;  /*!< EP0 transmit FIFO size,        Address offset: 0x028 */
+    volatile uint32_t GNPTXSTS;  /*!< non-periodic TX FIFO status,   Address offset: 0x02C */
+    uint32_t RESERVED0[2];       /*!< Reserved,                      Address offset: 0x030 */
+    volatile uint32_t GCCFG;     /*!< general core configuration,    Address offset: 0x038 */
+    volatile uint32_t CID;       /*!< core ID,                       Address offset: 0x03C */
+    uint32_t RESERVED1[48];      /*!< Reserved,                      Address offset: 0x040 */
+    volatile uint32_t HPTXFSIZ;  /*!< host periodic TX FIFO size,    Address offset: 0x100 */
+    volatile uint32_t DIEPTXF[5];/*!< EP1..5 transmit FIFO size,     Address offset: 0x104 */
+} OTG_Global_t;
 
-#define OTG_REG(off) (*(volatile uint32_t *)(OTG_FS_BASE + (off)))
+typedef struct {
+    volatile uint32_t DCFG;      /*!< device configuration,          Address offset: 0x800 */
+    volatile uint32_t DCTL;      /*!< device control,                Address offset: 0x804 */
+    volatile uint32_t DSTS;      /*!< device status,                 Address offset: 0x808 */
+    uint32_t RESERVED0;          /*!< Reserved,                      Address offset: 0x80C */
+    volatile uint32_t DIEPMSK;   /*!< IN endpoint interrupt mask,    Address offset: 0x810 */
+    volatile uint32_t DOEPMSK;   /*!< OUT endpoint interrupt mask,   Address offset: 0x814 */
+    volatile uint32_t DAINT;     /*!< all endpoints interrupt,       Address offset: 0x818 */
+    volatile uint32_t DAINTMSK;  /*!< all endpoints interrupt mask,  Address offset: 0x81C */
+} OTG_Device_t;
 
-/* core global */
-#define OTG_GOTGCTL     OTG_REG(0x000)
-#define OTG_GAHBCFG     OTG_REG(0x008)
-#define OTG_GUSBCFG     OTG_REG(0x00C)
-#define OTG_GRSTCTL     OTG_REG(0x010)
-#define OTG_GINTSTS     OTG_REG(0x014)
-#define OTG_GINTMSK     OTG_REG(0x018)
-#define OTG_GRXSTSP     OTG_REG(0x020)
-#define OTG_GRXFSIZ     OTG_REG(0x024)
-#define OTG_DIEPTXF0    OTG_REG(0x028)
-#define OTG_GCCFG       OTG_REG(0x038)
-#define OTG_DIEPTXF(n)  OTG_REG(0x104 + 4u * ((n) - 1u))   /* n = 1..5 */
+typedef struct {
+    volatile uint32_t DIEPCTL;   /*!< IN endpoint control,           Address offset: 0x900 + 0x20 * n */
+    uint32_t RESERVED0;
+    volatile uint32_t DIEPINT;   /*!< IN endpoint interrupt,         Address offset: 0x908 + 0x20 * n */
+    uint32_t RESERVED1;
+    volatile uint32_t DIEPTSIZ;  /*!< IN endpoint transfer size,     Address offset: 0x910 + 0x20 * n */
+    uint32_t RESERVED2;
+    volatile uint32_t DTXFSTS;   /*!< IN endpoint TX FIFO status,    Address offset: 0x918 + 0x20 * n */
+    uint32_t RESERVED3;
+} OTG_INEP_t;
 
-/* device */
-#define OTG_DCFG        OTG_REG(0x800)
-#define OTG_DCTL        OTG_REG(0x804)
-#define OTG_DSTS        OTG_REG(0x808)
-#define OTG_DIEPMSK     OTG_REG(0x810)
-#define OTG_DOEPMSK     OTG_REG(0x814)
-#define OTG_DAINT       OTG_REG(0x818)
-#define OTG_DAINTMSK    OTG_REG(0x81C)
-#define OTG_DIEPCTL(n)  OTG_REG(0x900 + 0x20u * (n))
-#define OTG_DIEPINT(n)  OTG_REG(0x908 + 0x20u * (n))
-#define OTG_DIEPTSIZ(n) OTG_REG(0x910 + 0x20u * (n))
-#define OTG_DTXFSTS(n)  OTG_REG(0x918 + 0x20u * (n))
-#define OTG_DOEPCTL(n)  OTG_REG(0xB00 + 0x20u * (n))
-#define OTG_DOEPINT(n)  OTG_REG(0xB08 + 0x20u * (n))
-#define OTG_DOEPTSIZ(n) OTG_REG(0xB10 + 0x20u * (n))
-#define OTG_PCGCCTL     OTG_REG(0xE00)
-#define OTG_FIFO(n)     OTG_REG(0x1000 + 0x1000u * (n))
+typedef struct {
+    volatile uint32_t DOEPCTL;   /*!< OUT endpoint control,          Address offset: 0xB00 + 0x20 * n */
+    uint32_t RESERVED0;
+    volatile uint32_t DOEPINT;   /*!< OUT endpoint interrupt,        Address offset: 0xB08 + 0x20 * n */
+    uint32_t RESERVED1;
+    volatile uint32_t DOEPTSIZ;  /*!< OUT endpoint transfer size,    Address offset: 0xB10 + 0x20 * n */
+    uint32_t RESERVED2[3];
+} OTG_OUTEP_t;
+
+#define OTG_FS_BASE  0x50000000
+#define OTG          ((OTG_Global_t *) OTG_FS_BASE)
+#define OTG_DEVICE   ((OTG_Device_t *) (OTG_FS_BASE + 0x800))
+#define OTG_INEP(n)  ((OTG_INEP_t *) (OTG_FS_BASE + 0x900 + 0x20 * (n)))
+#define OTG_OUTEP(n) ((OTG_OUTEP_t *) (OTG_FS_BASE + 0xB00 + 0x20 * (n)))
+#define OTG_PCGCCTL  (*(volatile uint32_t *) (OTG_FS_BASE + 0xE00))   /* power and clock gating */
+#define OTG_FIFO(n)  (*(volatile uint32_t *) (OTG_FS_BASE + 0x1000 + 0x1000 * (n)))   /* push/pop */
 
 /* GAHBCFG */
 #define GAHBCFG_GINTMSK   (1u << 0)

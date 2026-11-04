@@ -1,16 +1,20 @@
-/* TIM_OCToggle (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM1, 16 MHz counter clock, period 65536, output compare toggle mode on
- * CH1..CH4 (PA8..PA11, polarity low). Each CC interrupt advances its CCR
- * by the channel's step, so the pins toggle at a fixed rate:
- *   CH1 195.3 Hz, CH2 390.6 Hz, CH3 781.3 Hz, CH4 1562.5 Hz. */
-#include "l4_example.h"
-#include "libstefi/timer.h"
+/*
+ * TIM_OCToggle: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * TIM1 CH1..4 (PA8..PA11) toggle at 195, 391, 781, 1563 Hz (output compare toggle).
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 static const gpio_id_t pins[4] = {A8, A9, A10, A11};
 static const uint32_t step[4] = {40961, 20480, 10240, 5120};
 
-static void advance(timer_channel_t c)
-{
+static void advance(timer_channel_t c) {
     uint32_t v = timer_get_compare(TIMER1, c) + step[c - 1];
     timer_set_compare(TIMER1, c, v & 0xFFFFu);
 }
@@ -19,8 +23,7 @@ static void cc2(void *a) { (void) a; advance(TIMER_CHANNEL2); }
 static void cc3(void *a) { (void) a; advance(TIMER_CHANNEL3); }
 static void cc4(void *a) { (void) a; advance(TIMER_CHANNEL4); }
 
-void main(void)
-{
+void main() {
     board_init();
     timer_init(TIMER1);
     timer_set_period(TIMER1, (uint16_t) (system_get_core_clock() / 16000000u), 65536);
@@ -36,5 +39,5 @@ void main(void)
         timer_set_oc_polarity(TIMER1, c, false);
     }
     timer_start(TIMER1);
-    for (;;);
+    while(1);
 }

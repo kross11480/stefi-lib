@@ -3,24 +3,19 @@
 /**********************************************************************/
 #include "libstefi/cortex.h"
 #include "libstefi/util.h"
+#include "internal/cortexm4_internal.h"
+#include "internal/systick_internal.h"
 
 #include <stddef.h>
 
-#define MPU_CTRL  (*(volatile uint32_t *) 0xE000ED94u)
-#define MPU_RNR   (*(volatile uint32_t *) 0xE000ED98u)
-#define MPU_RBAR  (*(volatile uint32_t *) 0xE000ED9Cu)
-#define MPU_RASR  (*(volatile uint32_t *) 0xE000EDA0u)
-#define SCB_SHCSR (*(volatile uint32_t *) 0xE000ED24u)
-#define SCB_CFSR  (*(volatile uint32_t *) 0xE000ED28u)
-#define SYST_LOAD (*(volatile uint32_t *) 0xE000E014u)
 
 static inline void barrier(void) { __asm volatile ("dsb\n isb" ::: "memory"); }
 
 void mpu_set_region(const mpu_region_t *r)
 {
-    MPU_RNR = r->number;
-    MPU_RBAR = r->base & ~0x1Fu;
-    MPU_RASR = ((uint32_t) (r->execute_never ? 1u : 0u) << 28)
+    MPU->RNR = r->number;
+    MPU->RBAR = r->base & ~0x1Fu;
+    MPU->RASR = ((uint32_t) (r->execute_never ? 1u : 0u) << 28)
              | ((uint32_t) r->access << 24)
              | ((uint32_t) (r->tex & 7u) << 19) | ((uint32_t) (r->shareable & 1u) << 18)
              | ((uint32_t) (r->cacheable & 1u) << 17) | ((uint32_t) (r->bufferable & 1u) << 16)
@@ -30,21 +25,21 @@ void mpu_set_region(const mpu_region_t *r)
 
 void mpu_disable_region(uint8_t number)
 {
-    MPU_RNR = number;
-    MPU_RASR = 0;
+    MPU->RNR = number;
+    MPU->RASR = 0;
     barrier();
 }
 
 void mpu_enable(void)
 {
-    MPU_CTRL = BIT(2) | BIT(0);      // PRIVDEFENA | ENABLE
+    MPU->CTRL = BIT(2) | BIT(0);      // PRIVDEFENA | ENABLE
     barrier();
 }
 
 void mpu_disable(void)
 {
     barrier();
-    MPU_CTRL = 0;
+    MPU->CTRL = 0;
 }
 
 static bool (*memfault_fn)(void);
@@ -52,7 +47,7 @@ static bool (*memfault_fn)(void);
 void cortex_on_memmanage_fault(bool (*fn)(void))
 {
     memfault_fn = fn;
-    SCB_SHCSR |= BIT(16);            // MEMFAULTENA
+    SCB->SHCSR |= BIT(16);            // MEMFAULTENA
 }
 
 /* Called with the exception stack frame; skip the faulting (16-bit or
@@ -60,7 +55,7 @@ void cortex_on_memmanage_fault(bool (*fn)(void))
 void memmanage_dispatch(uint32_t *frame)
 {
     bool resume = memfault_fn ? memfault_fn() : false;
-    SCB_CFSR = 0xFFu;                // clear MMFSR
+    SCB->CFSR = 0xFFu;                // clear MMFSR
     if (!resume) for (;;);
     uint16_t op = *(uint16_t *) frame[6];
     frame[6] += ((op & 0xE000u) == 0xE000u && (op & 0x1800u)) ? 4u : 2u;
@@ -148,5 +143,5 @@ __attribute__((naked)) void SVC_Handler(void)
 
 uint32_t cortex_systick_reload(void)
 {
-    return SYST_LOAD;
+    return SysTick->LOAD;
 }

@@ -1,16 +1,20 @@
-/* TIM_OCActive (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM1, 10 kHz counter clock; CH1..CH4 (PA8..PA11) in output-compare
- * "active" mode: each pin goes high when the counter reaches its CCR,
- * i.e. 1 s, 500 ms, 250 ms, 125 ms after LD2 turns on (the start mark).
- * Compare LD2 and the pins on an oscilloscope. */
-#include "l4_example.h"
-#include "libstefi/timer.h"
+/*
+ * TIM_OCActive: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * TIM1 CH1..4 (PA8..PA11) go high 1 s, 500, 250, 125 ms after LED2 turns on.
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 static const gpio_id_t pins[4] = {A8, A9, A10, A11};
 static const uint32_t pulse[4] = {10000, 5000, 2500, 1250};
 
-void main(void)
-{
+void main() {
     board_init();
     led_off(LED2);
     timer_init(TIMER1);
@@ -26,5 +30,5 @@ void main(void)
     }
     led_on(LED2);
     timer_start(TIMER1);
-    for (;;);
+    while(1);
 }

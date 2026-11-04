@@ -1,16 +1,20 @@
-/* TIM_DMA (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM1 CH3 (PA10, AF1): 80 MHz / 4553 = 17.57 kHz PWM, active high,
- * repetition counter 3. The CC3 DMA request (DMA1 ch7, CSELR 7, word,
- * circular) loads the next duty from memory into CCR3; with RCR = 3 a new
- * value takes effect every 4 periods: 75 %, 50 %, 25 %, 75 %, ... */
-#include "l4_example.h"
-#include "libstefi/dma_channel.h"
-#include "libstefi/timer.h"
+/*
+ * TIM_DMA: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * TIM1 CH3 (PA10) 17.57 kHz PWM, RCR 3; DMA loads the next duty into CCR3.
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/dma_channel.h>
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 static uint32_t cc_values[3];
 
-void main(void)
-{
+void main() {
     board_init();
     uint32_t period = system_get_core_clock() / 17570u - 1u;
     cc_values[0] = 75u * (period - 1u) / 100u;
@@ -36,5 +40,5 @@ void main(void)
     dma_channel_enable(PERIPHERAL_DMA1, 7);
     timer_enable_dma_request(TIMER1, TIMER_DMA_CC3);
     timer_start(TIMER1);
-    for (;;);
+    while(1);
 }

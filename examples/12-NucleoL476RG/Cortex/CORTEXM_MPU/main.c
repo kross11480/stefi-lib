@@ -1,25 +1,24 @@
-/* CORTEXM_MPU (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * Built twice: l4_cortexm_mpu (reads only) and l4_cortexm_mpu_fault (WRITE_TO_RO).
- *
- * MPU regions: SRAM (128 KB) full access, flash (1 MB) read-only,
- * peripherals (512 MB, execute-never) full access, and a 32-byte array as
- * region 3: privileged read-only. Reading the array is allowed — LD2
- * toggles. With WRITE_TO_RO the program writes to it: MemManage fault,
- * LD2 stays on. */
-#include "l4_example.h"
-#include "libstefi/cortex.h"
+/*
+ * CORTEXM_MPU: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * MPU regions for SRAM, flash, peripherals and a privileged read-only array;
+ * LED2 toggles. Variant _fault writes the array: MemManage fault, LED2 on.
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/cortex.h>
+#include <libstefi/systick.h>
 
 static uint8_t privileged_ro_array[32] __attribute__((aligned(32)));
 
-static bool on_memmanage(void)
-{
+static bool on_memmanage(void) {
     led_on(LED2);
-    for (;;);                        // stay here, LD2 on
+    while(1);                        // stay here, LD2 on
     return false;
 }
 
-void main(void)
-{
+void main() {
     board_init();
 
     mpu_disable();
@@ -39,7 +38,7 @@ void main(void)
     *(volatile uint8_t *) &privileged_ro_array[0] = 'e';     // write: MemManage fault
 #endif
 
-    for (;;) {
+    while(1) {
         led_toggle(LED2);
         systick_delay_ms(100);
     }

@@ -26,6 +26,7 @@ typedef struct {
     volatile uint32_t CCIPR;       /*!< peripherals independent clock config (CLK48SEL [27:26]), 0x88 */
     uint32_t      RESERVED7;   /*!< Reserved,                                                                Address offset: 0x8C */
     volatile uint32_t BDCR;        /*!< backup domain control (LSEON [0], LSERDY [1]),                         0x90 */
+    volatile uint32_t CSR;         /*!< control/status: LSI, reset flags,                                      0x94 */
 } RCC_typeDef;
 
 #define RCC ((RCC_typeDef *) 0x40021000) //Operator precedence remove ()

@@ -1,17 +1,38 @@
 /*
- * FLASH_EraseProgram (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * Erase the user area page by page, program it with a double-word
- * pattern, read it back and check it.
- *   LED2 on:                        data correct
- *   LED2 blinking (1 s period):     data wrong after programming
- *   LED2 blinking (100 ms / 2 s):   erase or program operation failed
- *
- * Difference to ST's example: the user area starts at page 32 (64 KB)
- * instead of page 4 — a stefi-lib image with printf is larger than 8 KB.
+ * FLASH_EraseProgram: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * Erase pages 32..63, program them double word by double word, verify.
+ * LED2 on: ok; blinking 1 s: wrong data; 100 ms / 2 s: flash error.
  */
-#include "g4_example.h"
-#include "libstefi/flash.h"
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/flash.h>
+#include <libstefi/systick.h>
+
+/* LED2 blinking with a 1 s period: error */
+static void led_error_forever() {
+    while(1) {
+        led_toggle(LED2);
+        systick_delay_ms(500);
+    }
+}
+
+/* LED2 blinking 100 ms on / 2 s off: a flash operation failed */
+static void led_flash_forever() {
+    while(1) {
+        led_on(LED2);
+        systick_delay_ms(100);
+        led_off(LED2);
+        systick_delay_ms(2000);
+    }
+}
+
+/* LED2 on: passed */
+static void led_success_forever() {
+    led_on(LED2);
+    while(1);
+}
 
 #define USER_FIRST_PAGE 32u
 #define USER_LAST_PAGE  63u
@@ -20,20 +41,19 @@
 #define DATA_32         0x12345678u
 #define DATA_64         0x1234567812345678ull
 
-void main(void)
-{
+void main() {
     board_init();
 
     uint32_t bad_page;
     if (!flash_erase_pages(USER_FIRST_PAGE, USER_LAST_PAGE - USER_FIRST_PAGE + 1u, &bad_page)) {
-        example_error_flash();
+        led_flash_forever();
     }
     const uint64_t pattern = DATA_64;
     for (uint32_t addr = USER_START; addr < USER_END; addr += 8u) {
-        if (!flash_write(addr, &pattern, 8u)) example_error_flash();
+        if (!flash_write(addr, &pattern, 8u)) led_flash_forever();
     }
     for (uint32_t addr = USER_START; addr < USER_END; addr += 4u) {
-        if (*(volatile const uint32_t *) addr != DATA_32) example_error();
+        if (*(volatile const uint32_t *) addr != DATA_32) led_error_forever();
     }
-    example_success();
+    led_success_forever();
 }

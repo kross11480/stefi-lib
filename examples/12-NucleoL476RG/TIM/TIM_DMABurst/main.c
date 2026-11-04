@@ -1,16 +1,20 @@
-/* TIM_DMABurst (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM2 CH1 (PA0, AF1) PWM at 16 MHz counter clock. On every update DMA
- * request (DMA1 ch2, CSELR 4) the DMA burst writes 3 registers starting at
- * ARR: ARR = 0x0FFF, RCR = 0 (TIM2 has none), CCR1 = 0x0555 ->
- * 16 MHz / 4096 = 3.9 kHz with ~33 % duty. */
-#include "l4_example.h"
-#include "libstefi/dma_channel.h"
-#include "libstefi/timer.h"
+/*
+ * TIM_DMABurst: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * TIM2 CH1 (PA0): a DMA burst rewrites ARR and CCR1 on every update.
+ */
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/dma_channel.h>
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
 
 static uint32_t src_buffer[3] = {0x0FFF, 0x0000, 0x0555};
 
-void main(void)
-{
+void main() {
     board_init();
     gpio_set_alternate_function(A0, AF1);
     gpio_set_mode(A0, MODER_AF);
@@ -31,5 +35,5 @@ void main(void)
     dma_channel_enable(PERIPHERAL_DMA1, 2);
     timer_enable_dma_request(TIMER2, TIMER_DMA_UPDATE);
     timer_start(TIMER2);
-    for (;;);
+    while(1);
 }

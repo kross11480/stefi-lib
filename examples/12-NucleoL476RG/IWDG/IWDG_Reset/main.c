@@ -1,24 +1,25 @@
-/* IWDG_Reset (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * The LSI frequency is measured with TIM16 (CH1 internally connected to
- * the LSI) and the IWDG is set to a 1 s timeout from it (prescaler 32,
- * reload = f_LSI / 32). The main loop refreshes every 990 ms and toggles
- * LD2. B1 simulates a software failure (its interrupt writes to an invalid
- * address: HardFault, no more refresh) -> IWDG reset; after it LD2 is on
- * for 4 s. */
-#include "l4_example.h"
-#include "libstefi/iwdg.h"
+/*
+ * IWDG_Reset: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * IWDG set to 1 s from the measured LSI, refreshed every 990 ms (LED2 toggles).
+ * B1: HardFault, no refresh -> reset. LED2 on 4 s after it.
+ */
 
-static void on_button(void *aux)
-{
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/iwdg.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+
+static void on_button(void *aux) {
     (void) aux;
     *(volatile uint32_t *) 0xA0003000u = 0xFF;   // no memory there: bus fault
 }
 
-void main(void)
-{
+void main() {
     board_init();
-    example_button_irq(on_button);
+    button_interrupt_init(BUTTON_USER, on_button);
 
     if (system_reset_flags() & RESET_CAUSE_IWDG) {
         led_on(LED2);
@@ -30,7 +31,7 @@ void main(void)
     uint32_t lsi_hz = system_measure_lsi_hz();
     iwdg_start(IWDG_PRESCALER_32, (uint16_t) (lsi_hz / 32u), IWDG_WINDOW_DISABLED);
 
-    for (;;) {
+    while(1) {
         led_toggle(LED2);
         systick_delay_ms(990);
         iwdg_refresh();

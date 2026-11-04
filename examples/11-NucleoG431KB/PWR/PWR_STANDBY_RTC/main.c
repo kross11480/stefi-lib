@@ -1,18 +1,18 @@
 /*
- * PWR_STANDBY_RTC (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * LED2 toggles for 5 s (Run mode), then the RTC wakeup timer (LSI / 16,
- * 0xFFFF ticks: ~33 s) is armed and the MCU enters Standby (LED2 off).
- * The RTC wakeup — or the reset button — restarts the program from reset,
- * which finds the Standby flag set, clears it, and the cycle repeats.
- * Not usable under a debugger (the core is not clocked in Standby).
+ * PWR_STANDBY_RTC: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * LED2 toggles 5 s, then Standby; the RTC wakeup (~33 s) restarts the program.
  */
-#include "g4_example.h"
-#include "libstefi/pwr.h"
-#include "libstefi/rtc.h"
 
-void main(void)
-{
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/pwr.h>
+#include <libstefi/rtc.h>
+#include <libstefi/systick.h>
+
+#include <stddef.h>
+
+void main() {
     board_init();
 
     if (pwr_woke_from_standby()) {

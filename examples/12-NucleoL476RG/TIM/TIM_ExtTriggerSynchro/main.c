@@ -1,16 +1,18 @@
-/* TIM_ExtTriggerSynchro (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * Three timers at 16 MHz counter clock, period 80, toggle outputs:
- *   TIM2: gated by an external signal on TI2 (PB3, AF1): counts while it
- *         is high; CH1 toggle on PA0 (AF1); TRGO = counter enable
- *   TIM3: gated by TIM2 (ITR1): CH1 toggle on PB4 (AF2), TRGO = enable
- *   TIM4: gated by TIM3 (ITR2): CH1 toggle on PB6 (AF2)
- * All three run only while the PB3 input is high — in sync. */
-#include "l4_example.h"
-#include "libstefi/timer.h"
-#include "libstefi/peripheral.h"
+/*
+ * TIM_ExtTriggerSynchro: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * TIM2 (PA0), TIM3 (PB4), TIM4 (PB6) toggle outputs, all gated by PB3.
+ */
 
-static void toggle_ch1(tim_id_t tim, gpio_id_t pin, afr_t af)
-{
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/peripheral.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+static void toggle_ch1(tim_id_t tim, gpio_id_t pin, afr_t af) {
     peripheral_gpio_enable(gpio_get_port_from_portpin(pin));
     gpio_set_alternate_function(pin, af);
     gpio_set_mode(pin, MODER_AF);
@@ -22,8 +24,7 @@ static void toggle_ch1(tim_id_t tim, gpio_id_t pin, afr_t af)
     timer_set_oc_polarity(tim, TIMER_CHANNEL1, true);
 }
 
-void main(void)
-{
+void main() {
     board_init();
 
     toggle_ch1(TIMER2, A0, AF1);
@@ -44,5 +45,5 @@ void main(void)
     timer_start(TIMER4);
     timer_start(TIMER3);
     timer_start(TIMER2);
-    for (;;);
+    while(1);
 }

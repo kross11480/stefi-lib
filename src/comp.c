@@ -7,16 +7,18 @@
 #include "libstefi/util.h"
 #include "internal/gpio_internal.h"
 #include "internal/rcc_internal.h"
+#include "internal/comp_internal.h"
 
 #include <stddef.h>
 
-#define COMP_CSR(n) (*(volatile uint32_t *) (0x40010200u + 4u * ((n) - 1u)))
 #define CSR_EN      BIT(0)
 #define CSR_BRGEN   BIT(22)   /* resistor bridge: 1/4, 1/2, 3/4 VREFINT */
 #define CSR_SCALEN  BIT(23)   /* VREFINT scaler: any VREFINT input */
 #define CSR_VALUE   (1u << 30)
 
 static struct { callbackfn_t fn; void *aux; } handlers[2];
+
+static inline COMP_t *comp_regs(uint8_t n) { return (n == 2) ? COMP2 : COMP1; }
 
 static const gpio_id_t inp_pins[2][2] = {{C5, B2}, {B4, B6}};
 
@@ -34,14 +36,14 @@ void comp_init(const comp_config_t *cfg)
                  | (cfg->invert ? BIT(15) : 0u);
     if (cfg->inm <= COMP_INM_VREFINT) csr |= CSR_SCALEN;          // as ST's HAL
     if (cfg->inm < COMP_INM_VREFINT) csr |= CSR_BRGEN;
-    COMP_CSR(n) = csr;
-    COMP_CSR(n) = csr | CSR_EN;
+    comp_regs(n)->CSR = csr;
+    comp_regs(n)->CSR = csr | CSR_EN;
     for (volatile uint32_t i = 0; i < 2000u; i++);  // tSTART (ultra-low power: ~80 us)
 }
 
 bool comp_output(uint8_t instance)
 {
-    return (COMP_CSR(instance) & CSR_VALUE) != 0;
+    return (comp_regs(instance)->CSR & CSR_VALUE) != 0;
 }
 
 void comp_enable_interrupt(uint8_t instance, bool rising, bool falling, callbackfn_t fn, void *aux)

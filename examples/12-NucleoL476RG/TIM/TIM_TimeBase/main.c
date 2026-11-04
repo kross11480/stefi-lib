@@ -1,18 +1,19 @@
-/* TIM_TimeBase (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM3: 80 MHz / 8000 = 10 kHz, period 10000: an update interrupt every
- * second toggles LD2. */
-#include "l4_example.h"
-#include "libstefi/timer.h"
+/*
+ * TIM_TimeBase: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * TIM3 update every second toggles LED2.
+ */
 
-static void on_update(void *aux) { (void) aux; led_toggle(LED2); }
+#include "board.h"
+#include "led.h"
+#include "hardware_timer.h"
 
-void main(void)
-{
+void blink_cb() {
+    led_toggle(LED2);
+}
+
+void main() {
     board_init();
-    timer_init(TIMER3);
-    timer_set_period(TIMER3, (uint16_t) (system_get_core_clock() / 10000u), 10000);
-    timer_update_interrupt_register_handler(TIMER3, on_update);
-    timer_enable_interrupt(TIMER3);
-    timer_start(TIMER3);
-    for (;;);
+    htimer_init_periodic_ms(TIMER3, 1000, blink_cb);
+    htimer_start(TIMER3);
+    while(1);
 }

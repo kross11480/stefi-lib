@@ -1,20 +1,22 @@
-/* RTC_Alarm (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * RTC on the LSI (prescalers 127 / 249 -> 1 Hz), calendar set to
- * Tuesday 2014-02-18 02:20:00, alarm A at 02:20:30. The time is shown
- * on the VCP every second (ST keeps it in aShowTime); at the alarm LD2
- * turns on. */
-#include <stdio.h>
+/*
+ * RTC_Alarm: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * Calendar from 02:20:00, alarm A at 02:20:30 turns LED2 on; time on the VCP.
+ */
 
-#include "l4_example.h"
-#include "libstefi/rtc.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/rtc.h>
+#include <libstefi/systick.h>
+
+#include <stddef.h>
+#include <stdio.h>
 
 static char show_time[16];
 
 static void on_alarm(void *aux) { (void) aux; led_on(LED2); }
 
-void main(void)
-{
+void main() {
     board_init();
     rtc_init_lsi();
     rtc_set_prescaler(0x7F, 0xF9);
@@ -23,7 +25,7 @@ void main(void)
     rtc_set_datetime(&t);
     rtc_alarm_a_set(2, 20, 30, on_alarm, NULL);
 
-    for (;;) {
+    while(1) {
         rtc_datetime_t now;
         rtc_get_datetime(&now);
         snprintf(show_time, sizeof show_time, "%02u:%02u:%02u", now.hours, now.minutes, now.seconds);

@@ -1,20 +1,16 @@
 /*
- * TIM_CascadeSynchro (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- *   TIM2 master: 170 MHz / 256 = 664 kHz PWM, 25 % (CH1 PA5, AF1);
- *                TRGO = update event.
- *   TIM3 slave of TIM2 (ITR1), gated mode: it counts one tick per TIM2
- *                update -> 664 kHz / 4 = 166 kHz PWM, 25 % (CH1 PA6, AF2);
- *                TRGO = its update event.
- *   TIM4 slave of TIM3 (ITR2), gated: 166 kHz / 4 = 41.5 kHz PWM, 25 %
- *                (CH1 PA11, AF10).
- * Look at the three waveforms with an oscilloscope.
+ * TIM_CascadeSynchro: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * TIM2 (PA5) -> TIM3 (PA6) -> TIM4 (PA11) gated in cascade: 664, 166, 41.5 kHz PWM.
  */
-#include "g4_example.h"
-#include "libstefi/timer.h"
 
-static void pwm_ch1(tim_id_t tim, gpio_id_t pin, afr_t af, uint32_t period, uint32_t pulse)
-{
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+static void pwm_ch1(tim_id_t tim, gpio_id_t pin, afr_t af, uint32_t period, uint32_t pulse) {
     timer_init(tim);
     timer_set_period(tim, 1, period);
     gpio_set_alternate_function(pin, af);
@@ -26,8 +22,7 @@ static void pwm_ch1(tim_id_t tim, gpio_id_t pin, afr_t af, uint32_t period, uint
     timer_set_oc_polarity(tim, TIMER_CHANNEL1, true);
 }
 
-void main(void)
-{
+void main() {
     board_init();
 
     pwm_ch1(TIMER2, A5, AF1, 256, 64);
@@ -45,5 +40,5 @@ void main(void)
     timer_start(TIMER3);
     timer_start(TIMER2);
 
-    for (;;);
+    while(1);
 }

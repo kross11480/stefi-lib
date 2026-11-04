@@ -2,15 +2,23 @@
 
 #include <stddef.h>
 
+#include "libstefi/system.h"
+
+/* Prescalers from the current core clock (4 MHz at reset on the L476, 16
+ * MHz on the G431, 80/170 MHz after system_init*): a 10 kHz tick for
+ * periodic timers, ~1 kHz PWM with 256 steps. At 4 MHz this gives the
+ * same 1 ms / 1 kHz as the original fixed values. */
+static uint16_t tick_10khz_prescaler(void) { return (uint16_t) (system_get_core_clock() / 10000u); }
+static uint16_t pwm_1khz_prescaler(void)   { return (uint16_t) ((system_get_core_clock() + 128000u) / 256000u); }
+
 void htimer_init(htimer_id_t id, htimer_channel_t channel, htimer_mode_t mode, uint32_t period_us, htimer_callbackfn_t cb) {
     timer_init(id);
-    // Get a board define for 4-> 4MHz
     switch(mode) {
         case HTIMER_MODE_PERIODIC:
-            timer_set_period(id, 4000, period_us);
+            timer_set_period(id, tick_10khz_prescaler(), period_us * 10u); //period in ms
             break;
         case HTIMER_MODE_PWM:
-            timer_set_period(id, 16, 255); //PWM Freq=4 MhZ/(16*256) = 1 KHZ
+            timer_set_period(id, pwm_1khz_prescaler(), 255); //PWM Freq ~ 1 KHZ
             timer_set_mode_pwm(id, channel);
             timer_cc_enable(id, channel, false);
             timer_set_compare(id, channel, 0);

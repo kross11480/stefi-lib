@@ -7,6 +7,7 @@
 | `nucleo_l476` (default) | STM32L476RG | STefi adapter board on NUCLEO-L476RG (LEDs, buttons, OLED, FRAM) |
 | `rohmi_g431` | STM32G431KB | RobOhmobil robot on NUCLEO-G431KB (motors, line sensors, IMU) |
 | `nucleo_g431kb` | STM32G431KB | Bare NUCLEO-G431KB, 170 MHz — runs the [STM32CubeG4 examples](g431-cube-examples.md) |
+| `nucleo_l476rg` | STM32L476RG | Bare NUCLEO-L476RG, 80 MHz — runs the [STM32CubeL4 examples](l476-cube-examples.md) |
 | `nucleo_f767zi` | STM32F767ZI | NUCLEO-F767ZI + USB-oscilloscope front-end (parallel ADC/DAC, trigger, USB CDC) |
 | `nucleo_l476_scope` | STM32L476RG | NUCLEO-L476RG wired to the USB-oscilloscope front-end (128 KB linker script) |
 

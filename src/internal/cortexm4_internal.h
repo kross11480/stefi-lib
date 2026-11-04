@@ -26,3 +26,15 @@ typedef struct
 } SCB_typeDef;
 
 #define SCB ((SCB_typeDef *) 0xE000ED00)
+
+/** Memory protection unit (ARMv7-M) */
+typedef struct
+{
+    volatile uint32_t TYPE;                   /*!< Offset: 0x000 (R/ )  MPU Type Register */
+    volatile uint32_t CTRL;                   /*!< Offset: 0x004 (R/W)  MPU Control Register */
+    volatile uint32_t RNR;                    /*!< Offset: 0x008 (R/W)  MPU Region Number Register */
+    volatile uint32_t RBAR;                   /*!< Offset: 0x00C (R/W)  MPU Region Base Address Register */
+    volatile uint32_t RASR;                   /*!< Offset: 0x010 (R/W)  MPU Region Attribute and Size Register */
+} MPU_typeDef;
+
+#define MPU ((MPU_typeDef *) 0xE000ED90)

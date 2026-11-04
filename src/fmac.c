@@ -5,18 +5,10 @@
 #include "libstefi/dma_channel.h"
 #include "libstefi/util.h"
 #include "internal/rcc_internal.h"
+#include "internal/fmac_internal.h"
 
 #include <stddef.h>
 
-#define FMAC_REG(off) (*(volatile uint32_t *) (0x40021400u + (off)))
-#define FMAC_X1BUFCFG FMAC_REG(0x00)
-#define FMAC_X2BUFCFG FMAC_REG(0x04)
-#define FMAC_YBUFCFG  FMAC_REG(0x08)
-#define FMAC_PARAM    FMAC_REG(0x0C)
-#define FMAC_CR       FMAC_REG(0x10)
-#define FMAC_SR       FMAC_REG(0x14)
-#define FMAC_WDATA    FMAC_REG(0x18)
-#define FMAC_RDATA    FMAC_REG(0x1C)
 
 #define PARAM_START   (1u << 31)
 #define CR_DMAREN     BIT(8)
@@ -39,21 +31,21 @@ void fmac_configure(const fmac_config_t *cfg)
 {
     RCC->AHB1ENR |= BIT(4);           // FMACEN
     (void) RCC->AHB1ENR;
-    FMAC_CR = CR_RESET;
-    while (FMAC_CR & CR_RESET);
-    FMAC_X1BUFCFG = cfg->x1_base | ((uint32_t) cfg->x1_size << 8) | ((uint32_t) (cfg->x1_full_wm & 3u) << 24);
-    FMAC_X2BUFCFG = cfg->x2_base | ((uint32_t) cfg->x2_size << 8);
-    FMAC_YBUFCFG  = cfg->y_base  | ((uint32_t) cfg->y_size << 8)  | ((uint32_t) (cfg->y_empty_wm & 3u) << 24);
-    FMAC_CR = cfg->clip ? CR_CLIPEN : 0u;
+    FMAC->CR = CR_RESET;
+    while (FMAC->CR & CR_RESET);
+    FMAC->X1BUFCFG = cfg->x1_base | ((uint32_t) cfg->x1_size << 8) | ((uint32_t) (cfg->x1_full_wm & 3u) << 24);
+    FMAC->X2BUFCFG = cfg->x2_base | ((uint32_t) cfg->x2_size << 8);
+    FMAC->YBUFCFG  = cfg->y_base  | ((uint32_t) cfg->y_size << 8)  | ((uint32_t) (cfg->y_empty_wm & 3u) << 24);
+    FMAC->CR = cfg->clip ? CR_CLIPEN : 0u;
 }
 
 static void load(uint32_t func, uint8_t p, uint8_t q, const int16_t *v1, uint8_t n1,
                  const int16_t *v2, uint8_t n2)
 {
-    FMAC_PARAM = PARAM_START | (func << 24) | p | ((uint32_t) q << 8);
-    for (uint32_t i = 0; i < n1; i++) FMAC_WDATA = (uint16_t) v1[i];
-    for (uint32_t i = 0; i < n2; i++) FMAC_WDATA = (uint16_t) v2[i];
-    while (FMAC_PARAM & PARAM_START);   // cleared when all values are loaded
+    FMAC->PARAM = PARAM_START | (func << 24) | p | ((uint32_t) q << 8);
+    for (uint32_t i = 0; i < n1; i++) FMAC->WDATA = (uint16_t) v1[i];
+    for (uint32_t i = 0; i < n2; i++) FMAC->WDATA = (uint16_t) v2[i];
+    while (FMAC->PARAM & PARAM_START);   // cleared when all values are loaded
 }
 
 void fmac_load_coefficients(const int16_t *b, uint8_t nb, const int16_t *a, uint8_t na)
@@ -67,33 +59,33 @@ void fmac_preload_y(const int16_t *y, uint8_t n)  { load(FUNC_LOAD_Y, n, 0, y, n
 void fmac_start_filter(uint8_t p, uint8_t q, uint8_t r)
 {
     uint32_t func = q ? FUNC_IIR : FUNC_FIR;
-    FMAC_PARAM = PARAM_START | (func << 24) | p | ((uint32_t) q << 8) | ((uint32_t) (r & 7u) << 16);
+    FMAC->PARAM = PARAM_START | (func << 24) | p | ((uint32_t) q << 8) | ((uint32_t) (r & 7u) << 16);
 }
 
 void fmac_stop(void)
 {
-    FMAC_PARAM &= ~PARAM_START;
-    FMAC_CR &= ~CR_DMAREN;
+    FMAC->PARAM &= ~PARAM_START;
+    FMAC->CR &= ~CR_DMAREN;
     if (rd.channel) dma_channel_disable(PERIPHERAL_DMA1, rd.channel);
 }
 
 bool fmac_write(int16_t x)
 {
-    if (FMAC_SR & SR_X1FULL) return false;
-    FMAC_WDATA = (uint16_t) x;
+    if (FMAC->SR & SR_X1FULL) return false;
+    FMAC->WDATA = (uint16_t) x;
     return true;
 }
 
 bool fmac_read(int16_t *y)
 {
-    if (FMAC_SR & SR_YEMPTY) return false;
-    *y = (int16_t) FMAC_RDATA;
+    if (FMAC->SR & SR_YEMPTY) return false;
+    *y = (int16_t) FMAC->RDATA;
     return true;
 }
 
 uint32_t fmac_status(void)
 {
-    return FMAC_SR;
+    return FMAC->SR;
 }
 
 static void on_dma(void *aux, uint32_t flags)
@@ -101,7 +93,7 @@ static void on_dma(void *aux, uint32_t flags)
     (void) aux;
     if ((flags & DMA_CHANNEL_FLAG_HT) && rd.half) rd.half();
     if (flags & (DMA_CHANNEL_FLAG_TC | DMA_CHANNEL_FLAG_TE)) {
-        FMAC_CR &= ~CR_DMAREN;
+        FMAC->CR &= ~CR_DMAREN;
         dma_channel_disable(PERIPHERAL_DMA1, rd.channel);
         if (rd.done) rd.done();
     }
@@ -121,9 +113,9 @@ void fmac_read_dma(int16_t *out, uint16_t n, uint8_t channel, void (*half)(void)
         .irq_tc = true, .irq_ht = (half != NULL), .irq_te = true,
     };
     dma_channel_register_handler(PERIPHERAL_DMA1, channel, on_dma, NULL);
-    dma_channel_configure(&cfg, &FMAC_RDATA, out, n);
+    dma_channel_configure(&cfg, &FMAC->RDATA, out, n);
     dma_channel_enable(PERIPHERAL_DMA1, channel);
-    FMAC_CR |= CR_DMAREN;
+    FMAC->CR |= CR_DMAREN;
 }
 
 /* --------------------------- software model --------------------------- */

@@ -1,16 +1,21 @@
-/* TIM_InputCapture (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * TIM1 at 80 MHz, CH2 = PA9 (AF1) input capture on rising edges; the CC2
- * interrupt computes frequency = 80 MHz / (difference of two captures).
- * Printed every second on the VCP. */
-#include <stdio.h>
+/*
+ * TIM_InputCapture: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * Frequency on PA9 (TIM1 CH2 input capture), printed every second.
+ */
 
-#include "l4_example.h"
-#include "libstefi/timer.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+#include <stdio.h>
 
 static volatile uint32_t frequency_hz;
 
-static void on_capture(void *aux)
-{
+static void on_capture(void *aux) {
     (void) aux;
     static uint32_t first, have;
     uint32_t now = timer_get_compare(TIMER1, TIMER_CHANNEL2);
@@ -20,8 +25,7 @@ static void on_capture(void *aux)
     have = 0;
 }
 
-void main(void)
-{
+void main() {
     board_init();
     gpio_set_alternate_function(A9, AF1);
     gpio_set_mode(A9, MODER_AF);
@@ -30,7 +34,7 @@ void main(void)
     timer_cc_interrupt_register_handler(TIMER1, TIMER_CC2_IRQ, on_capture);
     timer_cc_enable(TIMER1, TIMER_CHANNEL2, true);
     timer_start(TIMER1);
-    for (;;) {
+    while(1) {
         systick_delay_ms(1000);
         printf("frequency: %lu Hz\r\n", (unsigned long) frequency_hz);
     }

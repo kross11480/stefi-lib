@@ -1,24 +1,21 @@
 /*
- * TIM_PWMInput (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * TIM1 at 170 MHz in PWM-input mode on PA9 (TI2, AF6):
- *   IC2 (direct, rising edge)   -> CCR2 = period
- *   IC1 (indirect, falling)     -> CCR1 = high time
- *   slave reset mode on TI2FP2  -> the counter restarts at every rising edge
- * In the CC2 interrupt:
- *   frequency = 170 MHz / CCR2,  duty cycle = CCR1 * 100 / CCR2 %
- * Printed every second (ST-Link VCP). LED2 on: error (no/invalid signal
- * period 0).
+ * TIM_PWMInput: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * Frequency and duty cycle on PA9 (TIM1 PWM-input mode), printed every second.
  */
-#include <stdio.h>
 
-#include "g4_example.h"
-#include "libstefi/timer.h"
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/gpio.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+#include <stdio.h>
 
 static volatile uint32_t frequency_hz, duty_percent;
 
-static void on_capture(void *aux)
-{
+static void on_capture(void *aux) {
     (void) aux;
     uint32_t period = timer_get_compare(TIMER1, TIMER_CHANNEL2);
     if (period == 0) {
@@ -30,8 +27,7 @@ static void on_capture(void *aux)
     frequency_hz = system_get_core_clock() / period;
 }
 
-void main(void)
-{
+void main() {
     board_init();
 
     gpio_set_alternate_function(A9, AF6);
@@ -48,7 +44,7 @@ void main(void)
     timer_cc_enable(TIMER1, TIMER_CHANNEL2, true);
     timer_start(TIMER1);
 
-    for (;;) {
+    while(1) {
         systick_delay_ms(1000);
         printf("frequency: %lu Hz, duty cycle: %lu %%\r\n",
                (unsigned long) frequency_hz, (unsigned long) duty_percent);

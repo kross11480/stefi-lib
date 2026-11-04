@@ -6,11 +6,13 @@
 #include "libstefi/peripheral.h"
 #include "libstefi/util.h"
 #include "internal/rcc_internal.h"
+#include "internal/opamp_internal.h"
 
-#define OPAMP_CSR(n) (*(volatile uint32_t *) (0x40007800u + 0x10u * ((n) - 1u)))
 #define CSR_OPAEN   BIT(0)
 #define CSR_OPALPM  BIT(1)
 #define CSR_RANGE   (1u << 31)   /* OPAMP1 CSR: VDDA > 2.4 V (applies to both) */
+
+static inline OPAMP_t *opamp_regs(uint8_t n) { return (n == 2) ? OPAMP2 : OPAMP1; }
 
 void opamp_init(const opamp_config_t *cfg)
 {
@@ -25,27 +27,27 @@ void opamp_init(const opamp_config_t *cfg)
     if (cfg->mode == OPAMP_MODE_STANDALONE) gpio_set_mode(vinm, MODER_ANALOG);
     gpio_set_mode(vout, MODER_ANALOG);
 
-    OPAMP_CSR(1) |= CSR_RANGE;
+    opamp_regs(1)->CSR |= CSR_RANGE;
     uint32_t pga = (cfg->pga_gain_log2 ? (uint32_t) (cfg->pga_gain_log2 - 1u) : 0u) & 3u;
     uint32_t csr = ((uint32_t) cfg->mode << 2) | (pga << 4)
                  | (cfg->mode == OPAMP_MODE_PGA ? (0x2u << 8) : 0u)   // VM_SEL: internal (PGA)
                  | (cfg->vinp_dac ? BIT(10) : 0u)
                  | (cfg->low_power ? CSR_OPALPM : 0u);
-    OPAMP_CSR(cfg->instance) = (OPAMP_CSR(cfg->instance) & CSR_RANGE) | csr | CSR_OPAEN;
+    opamp_regs(cfg->instance)->CSR = (opamp_regs(cfg->instance)->CSR & CSR_RANGE) | csr | CSR_OPAEN;
 }
 
 void opamp_set_gain(uint8_t instance, uint8_t pga_gain_log2)
 {
     uint32_t pga = (pga_gain_log2 ? (uint32_t) (pga_gain_log2 - 1u) : 0u) & 3u;
-    OPAMP_CSR(instance) = (OPAMP_CSR(instance) & ~(0x3u << 4)) | (pga << 4);
+    opamp_regs(instance)->CSR = (opamp_regs(instance)->CSR & ~(0x3u << 4)) | (pga << 4);
 }
 
 void opamp_set_low_power(uint8_t instance, bool low_power)
 {
-    if (low_power) OPAMP_CSR(instance) |= CSR_OPALPM; else OPAMP_CSR(instance) &= ~CSR_OPALPM;
+    if (low_power) opamp_regs(instance)->CSR |= CSR_OPALPM; else opamp_regs(instance)->CSR &= ~CSR_OPALPM;
 }
 
 void opamp_disable(uint8_t instance)
 {
-    OPAMP_CSR(instance) &= ~CSR_OPAEN;
+    opamp_regs(instance)->CSR &= ~CSR_OPAEN;
 }

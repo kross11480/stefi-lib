@@ -1,47 +1,56 @@
 /*
- * UART_TwoBoards_ComPolling (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- * Built twice: TRANSMITTER_BOARD (g4_uart_twoboards_polling_tx) and without
- * (g4_uart_twoboards_polling_rx).
- *
- * Two boards, USART1 9600 8N1, polling mode with timeouts: TX PA9 -> RX
- * PA10 of the other board (both ways), GND <-> GND.
- * Board 1 (transmitter): waits for the jumper PA12 (Arduino D2) <-> GND
- *   (LED2 blinking fast), sends the message (5 s timeout), receives it
- *   back (5 s timeout), compares.
- * Board 2 (receiver): receives (long timeout), sends it back, compares.
- *   LED2 on:                     message identical on both boards
- *   LED2 blinking (1 s period):  timeout, wrong data or line error
+ * UART_TwoBoards_ComPolling: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * Two boards, USART1 PA9/PA10 9600 8N1, polling mode; build variants _tx / _rx.
+ * Transmitter starts on the PA12-GND jumper. LED2 on: message ok; blinking: error.
  */
+
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/systick.h>
+#include <libstefi/usart.h>
+
 #include <string.h>
 
-#include "g4_example.h"
-#include "libstefi/usart.h"
+/* LED2 blinking with a 1 s period: error */
+static void led_error_forever() {
+    while(1) {
+        led_toggle(LED2);
+        systick_delay_ms(500);
+    }
+}
+
+/* LED2 on: passed */
+static void led_success_forever() {
+    led_on(LED2);
+    while(1);
+}
 
 static const uint8_t tx_buffer[] =
     " **** UART_TwoBoards_ComPolling ****  **** UART_TwoBoards_ComPolling ****  **** UART_TwoBoards_ComPolling **** ";
 #define BUFFERSIZE (sizeof tx_buffer - 1u)
 static uint8_t rx_buffer[BUFFERSIZE];
 
-void main(void)
-{
+void main() {
     board_init();
 
     const usart_config_t cfg = {.baud = 9600, .word_bits = 8, .parity = USART_PARITY_NONE, .stop_bits = 1};
     usart_init(PERIPHERAL_UART1, A9, A10, &cfg);
 
 #if defined(TRANSMITTER_BOARD)
-    while (!example_jumper_set()) {
+    while (!button_is_pressed(BUTTON_D2)) {
         led_toggle(LED2);
         systick_delay_ms(100);
     }
     led_off(LED2);
-    if (usart_write(PERIPHERAL_UART1, tx_buffer, BUFFERSIZE, 5000) != USART_OK) example_error();
-    if (usart_read(PERIPHERAL_UART1, rx_buffer, BUFFERSIZE, 5000) != USART_OK) example_error();
+    if (usart_write(PERIPHERAL_UART1, tx_buffer, BUFFERSIZE, 5000) != USART_OK) led_error_forever();
+    if (usart_read(PERIPHERAL_UART1, rx_buffer, BUFFERSIZE, 5000) != USART_OK) led_error_forever();
 #else
-    if (usart_read(PERIPHERAL_UART1, rx_buffer, BUFFERSIZE, 0x1FFFFFF) != USART_OK) example_error();
-    if (usart_write(PERIPHERAL_UART1, tx_buffer, BUFFERSIZE, 5000) != USART_OK) example_error();
+    if (usart_read(PERIPHERAL_UART1, rx_buffer, BUFFERSIZE, 0x1FFFFFF) != USART_OK) led_error_forever();
+    if (usart_write(PERIPHERAL_UART1, tx_buffer, BUFFERSIZE, 5000) != USART_OK) led_error_forever();
 #endif
 
-    if (memcmp(tx_buffer, rx_buffer, BUFFERSIZE) != 0) example_error();
-    example_success();
+    if (memcmp(tx_buffer, rx_buffer, BUFFERSIZE) != 0) led_error_forever();
+    led_success_forever();
 }

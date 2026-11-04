@@ -18,6 +18,11 @@ input PA12 (Arduino D2) to GND as `BUTTON_D2`, ST-Link VCP on USART2, core
 at 170 MHz (examples that ST runs at 150 MHz switch with
 `system_init_g4(150000000)`).
 
+The examples follow the style of the other stefi-lib examples. Each one calls
+`board_init()` and uses the components (`led_*`, `button_is_pressed`,
+`button_interrupt_init` on `BUTTON_D2`) where ST used a BSP or HAL call.
+Small helpers (`led_error_forever`, `set_core_clock`) are local to each file.
+
 LED2 conventions (from ST's examples): **on** = passed, **blinking 1 s** =
 wrong result, **100 ms on / 2 s off** = a peripheral operation failed.
 

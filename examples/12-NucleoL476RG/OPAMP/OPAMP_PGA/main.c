@@ -1,17 +1,19 @@
-/* OPAMP_PGA (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * DAC channel 2 generates a sine (32 samples by DMA, DMA1 ch4, triggered
- * by TIM2 TRGO); OPAMP2 in programmable-gain mode amplifies it (input:
- * the DAC channel internally), output on PB0 (OPAMP2_VOUT). Each B1 press
- * steps: gain 2 -> gain 4 -> gain 2 low-power -> gain 4 low-power -> ...
- * — gain and power mode change on the fly while the OPAMP stays enabled.
- * Compare PA5 (DAC) and PB0 on an oscilloscope. */
-#include <math.h>
+/*
+ * OPAMP_PGA: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * DAC ch2 sine amplified by OPAMP2 in PGA mode (out PB0); B1 steps gain 2/4,
+ * normal/low power.
+ */
 
-#include "l4_example.h"
-#include "libstefi/dac.h"
-#include "libstefi/opamp.h"
-#include "libstefi/timer.h"
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/dac.h>
+#include <libstefi/opamp.h>
+#include <libstefi/systick.h>
+#include <libstefi/timer.h>
+
+#include <math.h>
 
 #ifndef M_PI
 #define M_PI 3.14159265358979323846
@@ -23,10 +25,9 @@ static volatile bool key_pressed;
 
 static void on_button(void *aux) { (void) aux; key_pressed = true; }
 
-void main(void)
-{
+void main() {
     board_init();
-    example_button_irq(on_button);
+    button_interrupt_init(BUTTON_USER, on_button);
 
     // small sine around mid-scale: x4 still fits in 3.3 V
     for (int i = 0; i < N; i++) sine[i] = (uint16_t) (512 + 300 * sin(2 * M_PI * i / N));
@@ -42,7 +43,7 @@ void main(void)
     opamp_init(&op);
 
     uint8_t step = 0;
-    for (;;) {
+    while(1) {
         if (!key_pressed) continue;
         key_pressed = false;
         step = (step + 1u) % 4u;

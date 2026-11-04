@@ -3,14 +3,9 @@
 /**********************************************************************/
 #include "libstefi/crc.h"
 #include "libstefi/util.h"
+#include "internal/crc_internal.h"
+#include "internal/rcc_internal.h"
 
-#define CRC_DR   (*(volatile uint32_t *) 0x40023000u)
-#define CRC_DR8  (*(volatile uint8_t *)  0x40023000u)
-#define CRC_DR16 (*(volatile uint16_t *) 0x40023000u)
-#define CRC_CR   (*(volatile uint32_t *) 0x40023008u)
-#define CRC_INIT (*(volatile uint32_t *) 0x40023010u)
-#define CRC_POL  (*(volatile uint32_t *) 0x40023014u)
-#define RCC_AHB1ENR (*(volatile uint32_t *) 0x40021048u)
 
 static uint8_t width_bits(uint8_t width)
 {
@@ -24,23 +19,23 @@ static uint8_t width_bits(uint8_t width)
 
 void crc_configure(const crc_config_t *cfg)
 {
-    RCC_AHB1ENR |= BIT(12);                 // CRCEN
-    (void) RCC_AHB1ENR;
-    CRC_POL = cfg->polynomial;
-    CRC_INIT = cfg->init;
-    CRC_CR = ((uint32_t) width_bits(cfg->width) << 3) | ((uint32_t) cfg->rev_in << 5)
+    RCC->AHB1ENR |= BIT(12);                // CRCEN
+    (void) RCC->AHB1ENR;
+    CRC->POL = cfg->polynomial;
+    CRC->INIT = cfg->init;
+    CRC->CR = ((uint32_t) width_bits(cfg->width) << 3) | ((uint32_t) cfg->rev_in << 5)
            | (cfg->rev_out ? BIT(7) : 0u);
     crc_reset();
 }
 
 void crc_reset(void)
 {
-    CRC_CR |= BIT(0);                       // RESET: DR = INIT
+    CRC->CR |= BIT(0);                       // RESET: DR = INIT
 }
 
 uint32_t crc_value(void)
 {
-    return CRC_DR;
+    return CRC->DR;
 }
 
 /* Bytes go in as big-endian packed words, then a half-word and/or a byte
@@ -50,27 +45,27 @@ uint32_t crc_feed_bytes(const uint8_t *data, size_t n)
 {
     size_t i = 0;
     for (; i + 4u <= n; i += 4u) {
-        CRC_DR = ((uint32_t) data[i] << 24) | ((uint32_t) data[i + 1] << 16)
+        CRC->DR = ((uint32_t) data[i] << 24) | ((uint32_t) data[i + 1] << 16)
                | ((uint32_t) data[i + 2] << 8) | data[i + 3];
     }
     if (n - i >= 2u) {
-        CRC_DR16 = (uint16_t) ((data[i] << 8) | data[i + 1]);
+        *(volatile uint16_t *) &CRC->DR = (uint16_t) ((data[i] << 8) | data[i + 1]);
         i += 2u;
     }
-    if (i < n) CRC_DR8 = data[i];
-    return CRC_DR;
+    if (i < n) *(volatile uint8_t *) &CRC->DR = data[i];
+    return CRC->DR;
 }
 
 uint32_t crc_feed_halfwords(const uint16_t *data, size_t n)
 {
-    for (size_t i = 0; i < n; i++) CRC_DR16 = data[i];
-    return CRC_DR;
+    for (size_t i = 0; i < n; i++) *(volatile uint16_t *) &CRC->DR = data[i];
+    return CRC->DR;
 }
 
 uint32_t crc_feed_words(const uint32_t *data, size_t n)
 {
-    for (size_t i = 0; i < n; i++) CRC_DR = data[i];
-    return CRC_DR;
+    for (size_t i = 0; i < n; i++) CRC->DR = data[i];
+    return CRC->DR;
 }
 
 /* ----------------------------- software model ----------------------------- */

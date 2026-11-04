@@ -75,3 +75,7 @@ typedef struct
 #define TIM15 TIM15_BASE
 #define TIM16 TIM16_BASE
 #define TIM17 TIM17_BASE
+
+/* L4 only: TIM16 option register 1 (TI1_RMP: CH1 input from LSI/LSE/RTC),
+ * at an offset where the G4 layout above has CCMR3. */
+#define TIM16_L4_OR1 (*(volatile uint32_t *) (0x40014400 + 0x50))

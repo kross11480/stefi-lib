@@ -1,18 +1,22 @@
-/* PWR_LPSLEEP (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- *
- * SYSCLK = MSI 32 MHz. LD2 toggles for 5 s; then MSI 2 MHz (range 5),
- * low-power run regulator and Sleep: low-power sleep (LD2 off). B1 (EXTI
- * 13) wakes the MCU; main regulator and 32 MHz again; the cycle repeats. */
-#include "l4_example.h"
-#include "libstefi/pwr.h"
+/*
+ * PWR_LPSLEEP: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * LED2 toggles 5 s at 32 MHz, then low-power sleep at 2 MHz until B1.
+ */
+
+#include "board.h"
+#include "led.h"
+#include "button.h"
+
+#include <libstefi/pwr.h>
+#include <libstefi/system.h>
+#include <libstefi/systick.h>
 
 static void on_button(void *aux) { (void) aux; }
 
-void main(void)
-{
+void main() {
     board_init();
-    example_button_irq(on_button);
-    for (;;) {
+    button_interrupt_init(BUTTON_USER, on_button);
+    while(1) {
         system_init_l4_msi(10);
         systick_init(32000000u);
         systick_start();

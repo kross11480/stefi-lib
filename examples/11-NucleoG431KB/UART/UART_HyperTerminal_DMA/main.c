@@ -1,16 +1,29 @@
 /*
- * UART_HyperTerminal_DMA (STM32CubeG4, NUCLEO-G431KB) on stefi-lib.
- *
- * USART2 (ST-Link VCP, PA2/PA3), 9600 baud, 7 data bits + odd parity,
- * 1 stop bit — set the terminal to 9600 7O1. By DMA (DMA1 ch1 TX, ch2 RX):
- *   1. a start message is sent,
- *   2. 10 characters typed in the terminal are received,
- *   3. they are sent back, followed by an end message.
- *   LED2 on:                     all transfers done
- *   LED2 blinking (1 s period):  framing/parity error on reception
+ * UART_HyperTerminal_DMA: port of ST's example (STM32CubeG4, NUCLEO-G431KB) to stefi-lib.
+ * USART2 (VCP) 9600 7O1 by DMA: prints a prompt, receives 10 chars, echoes them.
  */
-#include "g4_example.h"
-#include "libstefi/usart.h"
+
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/systick.h>
+#include <libstefi/usart.h>
+
+#include <stddef.h>
+
+/* LED2 blinking with a 1 s period: error */
+static void led_error_forever() {
+    while(1) {
+        led_toggle(LED2);
+        systick_delay_ms(500);
+    }
+}
+
+/* LED2 on: passed */
+static void led_success_forever() {
+    led_on(LED2);
+    while(1);
+}
 
 #define RXBUFFERSIZE 10u
 
@@ -21,8 +34,7 @@ static uint8_t rx_buffer[RXBUFFERSIZE];
 
 static void wait_tx(void) { while (usart_tx_busy(PERIPHERAL_UART2)); }
 
-void main(void)
-{
+void main() {
     board_init();
 
     const usart_config_t cfg = {.baud = 9600, .word_bits = 8, .parity = USART_PARITY_ODD, .stop_bits = 1};
@@ -38,6 +50,6 @@ void main(void)
     usart_write_dma(PERIPHERAL_UART2, end_message, sizeof end_message - 1u, NULL, NULL);
     wait_tx();
 
-    if (usart_errors(PERIPHERAL_UART2) & 0x3u) example_error();   // PE / FE
-    example_success();
+    if (usart_errors(PERIPHERAL_UART2) & 0x3u) led_error_forever();   // PE / FE
+    led_success_forever();
 }

@@ -2,6 +2,7 @@
 #include "libstefi/util.h"
 #include "internal/flash_internal.h"
 #include "internal/mcu_id.h"
+#include "internal/gpio_internal.h"
 
 #include <string.h>
 
@@ -232,7 +233,7 @@ bool flash_set_dual_boot(bool boot_from_bank2) {
 
 uint8_t flash_boot_bank(void) {
     // SYSCFG_MEMRMP.FB_MODE [8]: bank 2 mapped at 0x08000000
-    return (*(volatile uint32_t *) 0x40010000u & BIT(8)) ? 2u : 1u;
+    return (SYSCFG->MEMRMP & BIT(8)) ? 2u : 1u;
 }
 
 bool flash_set_write_protection(flash_wrp_area_t area, uint32_t start, uint32_t end) {

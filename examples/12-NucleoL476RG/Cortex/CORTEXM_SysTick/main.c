@@ -1,13 +1,18 @@
-/* CORTEXM_SysTick (STM32CubeL4, NUCLEO-L476RG) on stefi-lib.
- * SysTick at 1 ms (HCLK / 80000); LD2 toggles every 50 ms using it. */
-#include "l4_example.h"
-#include "libstefi/cortex.h"
+/*
+ * CORTEXM_SysTick: port of ST's example (STM32CubeL4, NUCLEO-L476RG) to stefi-lib.
+ * LED2 toggles every 50 ms, timed by the 1 ms SysTick.
+ */
 
-void main(void)
-{
+#include "board.h"
+#include "led.h"
+
+#include <libstefi/cortex.h>
+#include <libstefi/systick.h>
+
+void main() {
     board_init();                    // systick_init(80 MHz): reload 80000 - 1 cycles per ms
     led_on(LED2);
-    for (;;) {
+    while(1) {
         led_toggle(LED2);
         systick_delay_ms(50);
     }
