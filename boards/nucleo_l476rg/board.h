@@ -4,8 +4,8 @@
 
 /*
  * Bare NUCLEO-L476RG (NUCLEO-64, MB1136) — the board ST's STM32CubeL4
- * examples are written for (Projects/NUCLEO-L476RG/Examples). The ports of
- * those examples live in a separate repository.
+ * examples are written for (Projects/NUCLEO-L476RG/Examples), ported in
+ * examples/12-NucleoL476RG.
  *
  *   LD2 (green)          PA5, active high
  *   B1 user button       PC13, active low (external pull-up), also WKUP2,

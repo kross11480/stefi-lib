@@ -142,8 +142,10 @@ if(STEFI_BUILD_EXAMPLES)
         add_subdirectories(${CMAKE_CURRENT_SOURCE_DIR}/tests)
     elseif(STEFI_BOARD STREQUAL "rohmi_g431")
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/8-Rohmi-BoardTest)
-    # nucleo_l476rg / nucleo_g431kb (bare Nucleos): board layers only. Their
-    # examples, the STM32CubeL4/G4 ports, live in a separate repository.
+    elseif(STEFI_BOARD STREQUAL "nucleo_l476rg")
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/12-NucleoL476RG)
+    elseif(STEFI_BOARD STREQUAL "nucleo_g431kb")
+        add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/11-NucleoG431KB)
     elseif(STEFI_BOARD STREQUAL "nucleo_f767zi" OR STEFI_BOARD STREQUAL "nucleo_l476_scope")
         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/examples/10-UsbOscilloscope)
     endif()

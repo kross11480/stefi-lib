@@ -4,8 +4,8 @@
 
 /*
  * Bare NUCLEO-G431KB (NUCLEO-32, MB1430) — the board ST's STM32CubeG4
- * examples are written for (Projects/NUCLEO-G431KB/Examples). The ports of
- * those examples live in a separate repository.
+ * examples are written for (Projects/NUCLEO-G431KB/Examples), ported in
+ * examples/11-NucleoG431KB.
  *
  *   LD2 (green)          PB8, active high
  *   "jumper" input       PA12 (Arduino D2): ST's examples use a wire/jumper

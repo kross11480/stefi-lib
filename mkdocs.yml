@@ -12,6 +12,8 @@ nav:
   - Getting started: GETTING_STARTED.md
   - Examples: examples.md
   - USB oscilloscope: usb-oscilloscope.md
+  - STM32CubeG4 examples: g431-cube-examples.md
+  - STM32CubeL4 examples: l476-cube-examples.md
 
 theme:
   name: material
