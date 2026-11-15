@@ -9,7 +9,7 @@
 #include "internal/pwr_flash_f7.h"
 
 /*
- * Clock tree:
+ * Clock tree (identical to the CubeMX setup of the USB oscilloscope):
  *   HSE 8 MHz (bypass) / PLLM 4 = 2 MHz VCO input
  *   main PLL: x200 = 400 MHz VCO, /P 2 = 200 MHz SYSCLK = HCLK
  *   PLLSAI:   x96  = 192 MHz VCO, /P 4 = 48 MHz -> CK48 (USB OTG FS)

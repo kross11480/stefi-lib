@@ -8,7 +8,8 @@
 | `rohmi_g431` | STM32G431KB | RobOhmobil robot on NUCLEO-G431KB (motors, line sensors, IMU) |
 | `nucleo_g431kb` | STM32G431KB | Bare NUCLEO-G431KB, 170 MHz (board layer only) |
 | `nucleo_l476rg` | STM32L476RG | Bare NUCLEO-L476RG, 80 MHz (board layer only) |
-| `nucleo_f767zi` | STM32F767ZI | Bare NUCLEO-F767ZI, 200 MHz (board layer only) |
+| `nucleo_f767zi` | STM32F767ZI | NUCLEO-F767ZI + USB-oscilloscope front-end (parallel ADC/DAC, trigger, USB CDC) |
+| `nucleo_l476_scope` | STM32L476RG | NUCLEO-L476RG wired to the USB-oscilloscope front-end (128 KB linker script) |
 
 ## Prerequisites
 
@@ -33,7 +34,8 @@ OpenOCD config:
 ```sh
 cmake -B cmake-build-f7 -DSTEFI_BOARD=nucleo_f767zi
 cmake --build cmake-build-f7
-openocd -f configs/st_nucleo_f7.cfg -c "program <elf> verify reset exit"
+openocd -f configs/st_nucleo_f7.cfg \
+        -c "program cmake-build-f7/examples/10-UsbOscilloscope/usb_oscilloscope verify reset exit"
 ```
 
 `printf` output goes to the ST-Link virtual COM port (USART2, 115200 baud;
@@ -82,5 +84,6 @@ or `STEFI_MCU_STM32F7` for every target linking `stefi::hal`.
   (it runs from HSI16).
 - Tests in `tests/L4` run on hardware, printing PASS/FAIL over UART; the
   GPIO loopback tests need jumper wires. `sh tests/host/run.sh` runs the
-  host-side unit tests with a native compiler.
+  host-side unit tests (portable components, oscilloscope protocol) with a
+  native compiler.
 - Blocking by default: I2C, SPI and ADC drivers poll.
